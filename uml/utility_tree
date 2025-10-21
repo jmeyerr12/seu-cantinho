@@ -1,0 +1,54 @@
+@startmindmap
+title Utility Tree — "Seu Cantinho"
+
+* ASRs (Atributos de Qualidade)
+** Confiabilidade / Consistência [ALTA]
+*** Evitar double-booking
+**** Métrica: 0 conflitos por (spaceId, date, [start,end])
+**** Tática: serviço de disponibilidade + transações ACID + índices
+
+** Usabilidade / Simplicidade [ALTA]
+*** Fluxo de reserva simples
+**** Métrica: concluir reserva em ≤ 3 passos
+**** Tática: validação front/back + mensagens claras
+
+** Segurança / Integridade Financeira [ALTA]
+*** Pagamentos (sinal x quitação) auditáveis
+**** Métrica: CONFIRMED somente após sinal pago; trilha de auditoria por reserva
+**** Tática: Payment{purpose: DEPOSIT|BALANCE} + logs imutáveis
+
+** Disponibilidade / Operação [ALTA]
+*** Execução estável
+**** Métrica: uptime ≥ 99.5%; recuperação < 15 min
+**** Tática: Docker Compose + healthchecks + restart policy
+
+** Desempenho [MÉDIA]
+*** Baixa latência na API
+**** Métrica: P95 < 500 ms em 100 req/s
+**** Tática: índices no DB, cache de leitura, endpoints enxutos
+
+** Escalabilidade [MÉDIA]
+*** Crescer para mais filiais/volume
+**** Métrica: suportar 5× volume sem refatoração estrutural
+**** Tática: arquitetura em camadas (REST), DB pronto para particionar/replicar
+
+** Modificabilidade / Manutenibilidade [MÉDIA]
+*** Evoluir regras sem quebrar o resto
+**** Métrica: mudanças no domínio com impacto local
+**** Tática: Controller → Service → Domain → Infra (baixo acoplamento)
+
+** Observabilidade [MÉDIA]
+*** Logs, métricas, tracing
+**** Métrica: 100% das requisições com status/latência logados; health endpoints
+**** Tática: middleware de logging + tracing/correlação (traceId)
+
+** Segurança / Acesso [BAIXA]
+*** Autenticação e perfis
+**** Métrica: RBAC (ADMIN/GERENTE/CLIENTE) aplicado nos endpoints
+**** Tática: JWT + checagem de escopos/roles
+
+** Portabilidade / Execução [BAIXA]
+*** Subir tudo com 1 comando
+**** Métrica: `docker compose up` (API + DB + docs)
+**** Tática: compose com variáveis de ambiente + dependências declaradas
+@endmindmap

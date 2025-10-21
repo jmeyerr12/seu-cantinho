@@ -1,0 +1,81 @@
+@startuml
+title "Seu Cantinho — Diagrama de Classes (Domínio) — Sem Enums"
+
+' ========= CLASSES =========
+class Branch {
+  +id: UUID
+  +name: String
+  +state: String
+  +city: String
+  +address: String
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Space {
+  +id: UUID
+  +branchId: UUID
+  +name: String
+  +description: String
+  +capacity: int
+  +basePricePerHour: Decimal
+  +active: Boolean
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Photo {
+  +id: UUID
+  +spaceId: UUID
+  +url: String
+  +caption: String
+  +order: int
+}
+
+class User {
+  +id: UUID
+  +name: String
+  +email: String
+  +phone: String
+  +role: String       ' ADMIN | MANAGER | CUSTOMER
+  +createdAt: DateTime
+}
+
+class Reservation {
+  +id: UUID
+  +spaceId: UUID
+  +branchId: UUID
+  +customerId: UUID
+  +date: Date
+  +startTime: Time
+  +endTime: Time
+  +status: String     ' PENDING | CONFIRMED | CANCELLED
+  +totalAmount: Decimal
+  +depositRequiredPct: Decimal
+  +notes: String
+  +createdAt: DateTime
+  +updatedAt: DateTime
+}
+
+class Payment {
+  +id: UUID
+  +reservationId: UUID
+  +amount: Decimal
+  +method: String     ' PIX | CARD | BOLETO | CASH
+  +status: String     ' PENDING | AUTHORIZED | PAID | REFUNDED | CANCELLED
+  +purpose: String    ' DEPOSIT | BALANCE
+  +paidAt: DateTime
+  +externalRef: String
+  +createdAt: DateTime
+}
+
+' ========= RELACIONAMENTOS =========
+Branch "1" o-- "0..*" Space
+Space  "1" o-- "0..*" Photo
+
+User  "1" --> "0..*" Reservation : "faz >>"
+Reservation "*" --> "1" Space
+Reservation "*" --> "1" Branch
+Reservation "1" o-- "0..*" Payment
+
+@enduml

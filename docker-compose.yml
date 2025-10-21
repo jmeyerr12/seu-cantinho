@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: seu_cantinho_db
+    environment:
+      POSTGRES_USER: seucantinho
+      POSTGRES_PASSWORD: seucantinho
+      POSTGRES_DB: seucantinho
+    ports:
+      - "5431:5432" #5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  postgres_data:

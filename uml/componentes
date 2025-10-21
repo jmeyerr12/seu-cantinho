@@ -1,0 +1,117 @@
+@startuml
+title "Seu Cantinho — Diagrama de Componentes (Monólito Modular REST)"
+
+' ==== Atores / Clientes ====
+actor Admin
+actor Cliente
+
+' ==== Front-end (opcional, pode ser outra app) ====
+package "Front-end (Web/App)" as FE {
+  [Web UI] as Web
+}
+
+' ==== Back-end ====
+node "Back-end (API REST)" as API {
+  [Swagger UI / OpenAPI] as Swagger
+  [Auth Filter (JWT/Session)] as Auth
+  [Validation Filter] as Vld
+
+  package "Controllers (HTTP/JSON)" as Ctrls {
+    [UsersController]
+    [SpacesController]
+    [ReservationsController]
+    [PaymentsController]
+  }
+
+  package "Application Services" as App {
+    [UserService]
+    [SpaceService]
+    [ReservationService]
+    [PaymentService]
+    [AvailabilityService <<domain policy>>]
+  }
+
+  package "Domain" as Dom {
+    [Entidades & Regras de Negócio]
+  }
+
+  package "Infra" as Infra {
+    [UserRepository]
+    [SpaceRepository]
+    [ReservationRepository]
+    [PaymentRepository]
+    [PhotoStorageAdapter]
+    [UnitOfWork]
+  }
+}
+
+' ==== Persistência ====
+database "PostgreSQL" as DB
+cloud "Object Storage (Fotos)" as OBJ
+
+' ==== Integração Externa Opcional ====
+component "Gateway de Pagamentos (externo)" as PayGW
+
+' ==== Relações ====
+Admin  --> Web : usa
+Cliente --> Web : usa
+
+Web --> UsersController       : HTTP/JSON
+Web --> SpacesController      : HTTP/JSON
+Web --> ReservationsController: HTTP/JSON
+Web --> PaymentsController    : HTTP/JSON
+
+Web --> Swagger : consulta documentação OpenAPI
+
+' Filtros transversais
+UsersController        ..> Auth
+SpacesController       ..> Auth
+ReservationsController ..> Auth
+PaymentsController     ..> Auth
+UsersController        ..> Vld
+SpacesController       ..> Vld
+ReservationsController ..> Vld
+PaymentsController     ..> Vld
+
+' Controllers -> Services
+UsersController        --> UserService
+SpacesController       --> SpaceService
+ReservationsController --> ReservationService
+PaymentsController     --> PaymentService
+
+' Services -> Domain
+UserService        ..> Dom
+SpaceService       ..> Dom
+ReservationService ..> Dom
+PaymentService     ..> Dom
+ReservationService ..> AvailabilityService : checar conflito\n(anti double-booking)
+
+' Services -> Infra (Repos/UnitOfWork)
+UserService        --> UserRepository
+SpaceService       --> SpaceRepository
+ReservationService --> ReservationRepository
+PaymentService     --> PaymentRepository
+Infra ..> UnitOfWork
+
+' Repos/Adapters -> Persistência
+UserRepository        --> DB
+SpaceRepository       --> DB
+ReservationRepository --> DB
+PaymentRepository     --> DB
+PhotoStorageAdapter   --> OBJ
+
+' Pagamentos externos (opcional)
+PaymentService --> PayGW : criar/confirmar transações
+
+' ==== Notas ====
+note right of API
+API REST obrigatória, documentada em OpenAPI/Swagger.
+Execução orquestrada via Docker Compose (api + db [+ swagger]).
+end note
+
+note bottom of AvailabilityService
+Regra de negócio central para evitar double-booking:
+mesmo espaço, mesma data e intervalos sobrepostos → rejeitar.
+end note
+
+@enduml
