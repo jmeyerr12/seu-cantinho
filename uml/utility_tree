@@ -1,54 +1,66 @@
 @startmindmap
-title Utility Tree — "Seu Cantinho"
+* Utility (Qualidades do "Seu Cantinho")
+** Confiabilidade
+*** Consistência entre filiais
+**** [Cenário][Prioridade: Alta][Risco: Alto] Duas filiais tentam reservar o mesmo espaço/horário; sistema garante exclusão mútua e confirma apenas uma reserva; nenhuma perda de dados. (Evitar double-booking)
+*** Integridade de dados
+**** [Cenário][Alta][Médio] Em caso de falha de rede durante criação de reserva, a operação é atômica: ou confirma tudo ou reverte sem resíduos.
+*** Disponibilidade
+**** [Cenário][Média][Médio] API de reservas permanece disponível > 99,5% no horário comercial das 3 regiões atendidas.
 
-* ASRs (Atributos de Qualidade)
-** Confiabilidade / Consistência [ALTA]
-*** Evitar double-booking
-**** Métrica: 0 conflitos por (spaceId, date, [start,end])
-**** Tática: serviço de disponibilidade + transações ACID + índices
+** Usabilidade
+*** Simplicidade para usuários com baixa familiaridade tecnológica
+**** [Cenário][Alta][Médio] Dona Maria consegue criar/editar/cancelar reserva em ≤ 3 cliques e entender status de pagamento (sinal/quitado) sem treinamento. 
+*** Feedback claro e tolerante a falhas
+**** [Cenário][Alta][Baixo] Erros de validação exibem mensagens em linguagem simples, com sugestão de correção.
 
-** Usabilidade / Simplicidade [ALTA]
-*** Fluxo de reserva simples
-**** Métrica: concluir reserva em ≤ 3 passos
-**** Tática: validação front/back + mensagens claras
+** Escalabilidade
+*** Crescimento para múltiplas filiais/estados
+**** [Cenário][Alta][Médio] Suportar aumento de 10x em espaços e reservas mantendo latência de criação de reserva < 2s p95.
+*** Concorrência em horários de pico
+**** [Cenário][Alta][Alto] 100 requisições concorrentes de criação de reserva com contenção mínima e sem conflitos confirmados.
 
-** Segurança / Integridade Financeira [ALTA]
-*** Pagamentos (sinal x quitação) auditáveis
-**** Métrica: CONFIRMED somente após sinal pago; trilha de auditoria por reserva
-**** Tática: Payment{purpose: DEPOSIT|BALANCE} + logs imutáveis
+** Desempenho
+*** Latência de operações críticas
+**** [Cenário][Alta][Médio] Buscar disponibilidade de um espaço para um intervalo retorna em < 500ms p95.
+*** Eficiência de consulta
+**** [Cenário][Média][Baixo] Listar reservas futuras paginadas responde em < 1s p95 para 10k reservas.
 
-** Disponibilidade / Operação [ALTA]
-*** Execução estável
-**** Métrica: uptime ≥ 99.5%; recuperação < 15 min
-**** Tática: Docker Compose + healthchecks + restart policy
+** Segurança
+*** Pagamentos e dados sensíveis
+**** [Cenário][Alta][Médio] Dados de pagamento trafegam apenas via TLS; estados “sinal pago” vs “quitada” não podem ser alterados sem autorização/logs.
+*** Autenticação e autorização
+**** [Cenário][Alta][Médio] Somente perfis autorizados podem alterar reservas e status financeiro; auditoria registra quem/quando/qual mudança.
 
-** Desempenho [MÉDIA]
-*** Baixa latência na API
-**** Métrica: P95 < 500 ms em 100 req/s
-**** Tática: índices no DB, cache de leitura, endpoints enxutos
+** Manutenibilidade
+*** Modularidade e camadas claras
+**** [Cenário][Alta][Baixo] Separação de camadas (API, domínio, persistência); alteração de regra de negócio não exige mudanças em controladores REST.
+*** Documentação e padrões
+**** [Cenário][Média][Baixo] Código com padrões e README claros; fácil onboarding de novo desenvolvedor em < 1 dia.
 
-** Escalabilidade [MÉDIA]
-*** Crescer para mais filiais/volume
-**** Métrica: suportar 5× volume sem refatoração estrutural
-**** Tática: arquitetura em camadas (REST), DB pronto para particionar/replicar
+** Interoperabilidade
+*** APIs REST padronizadas
+**** [Cenário][Alta][Baixo] Todas as operações (usuários, espaços, reservas, pagamentos) expostas via REST com OpenAPI/Swagger atualizado. 
+*** Contratos estáveis
+**** [Cenário][Média][Médio] Mudanças em API versionadas; clientes antigos continuam operando.
 
-** Modificabilidade / Manutenibilidade [MÉDIA]
-*** Evoluir regras sem quebrar o resto
-**** Métrica: mudanças no domínio com impacto local
-**** Tática: Controller → Service → Domain → Infra (baixo acoplamento)
+** Implantabilidade / Operabilidade
+*** Execução via Docker Compose
+**** [Cenário][Alta][Baixo] Sistema (back-end, front-end, banco) sobe com `docker compose up` em ambiente Linux compatível. 
+*** Observabilidade
+**** [Cenário][Média][Baixo] Logs estruturados + métricas básicas (latência p95, taxa de erro, throughput) por serviço.
+*** Reprodutibilidade
+**** [Cenário][Alta][Baixo] Ambiente reproduzível sem configuração adicional além do Docker.
 
-** Observabilidade [MÉDIA]
-*** Logs, métricas, tracing
-**** Métrica: 100% das requisições com status/latência logados; health endpoints
-**** Tática: middleware de logging + tracing/correlação (traceId)
+** Testabilidade
+*** Testes automatizados
+**** [Cenário][Média][Médio] Testes de unidade de domínio e testes de API (contrato e concorrência de reserva) no CI.
+*** Dados de demonstração
+**** [Cenário][Média][Baixo] Seed de dados para validar fluxos CRUD rapidamente.
 
-** Segurança / Acesso [BAIXA]
-*** Autenticação e perfis
-**** Métrica: RBAC (ADMIN/GERENTE/CLIENTE) aplicado nos endpoints
-**** Tática: JWT + checagem de escopos/roles
-
-** Portabilidade / Execução [BAIXA]
-*** Subir tudo com 1 comando
-**** Métrica: `docker compose up` (API + DB + docs)
-**** Tática: compose com variáveis de ambiente + dependências declaradas
+** Conformidade com Entrega/Processo
+*** Organização em Git
+**** [Cenário][Alta][Baixo] Repositório público com /src, /uml, docker-compose.yml, README.md e documentacao.pdf.
+*** Modelagem UML
+**** [Cenário][Média][Baixo] Diagramas de classes e componentes alinhados ao código.
 @endmindmap
