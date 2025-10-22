@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../config/db.js';
+import { pool } from '../config/db';
 import { v4 as uuid } from 'uuid';
 
 export const listBranches = async (req: Request, res: Response) => {

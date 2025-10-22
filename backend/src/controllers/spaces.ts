@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../db';
+import { pool } from '../config/db';
 import { v4 as uuid } from 'uuid';
 
 /* helpers */
