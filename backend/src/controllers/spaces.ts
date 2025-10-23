@@ -5,6 +5,43 @@ import { v4 as uuid } from 'uuid';
 /* helpers */
 const toBool = (v: any) => (typeof v === 'string' ? v === 'true' : !!v);
 
+/**
+ * @openapi
+ * /spaces:
+ *   get:
+ *     summary: Lista espaços
+ *     description: 'Retorna espaços, com filtros opcionais por filial, capacidade mínima e status ativo.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: query
+ *         name: branchId
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: 'ID da filial (branch) do espaço.'
+ *       - in: query
+ *         name: minCapacity
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: 'Capacidade mínima.'
+ *       - in: query
+ *         name: active
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *         description: 'Filtra por espaços ativos (true) ou inativos (false).'
+ *     responses:
+ *       200:
+ *         description: 'Lista de espaços.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Space'
+ */
 export const listSpaces = async (req: Request, res: Response) => {
   const { branchId, minCapacity, active } = req.query as {
     branchId?: string; minCapacity?: string; active?: string;
@@ -19,6 +56,35 @@ export const listSpaces = async (req: Request, res: Response) => {
   res.json(rows);
 };
 
+/**
+ * @openapi
+ * /spaces:
+ *   post:
+ *     summary: Cria um espaço
+ *     description: 'Cadastra um novo espaço.'
+ *     tags: [Spaces]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [branch_id, name, capacity, base_price_per_hour]
+ *             properties:
+ *               branch_id: { type: string, format: uuid, example: '1f0e4c2e-7d6b-4b0d-99f9-8d3a4a2ab001' }
+ *               name: { type: string, example: 'Sala Multiuso' }
+ *               description: { type: string, nullable: true, example: 'Espaço amplo para eventos.' }
+ *               capacity: { type: integer, example: 30 }
+ *               base_price_per_hour: { type: number, format: float, example: 120.5 }
+ *               active: { type: boolean, example: true }
+ *     responses:
+ *       201:
+ *         description: 'Espaço criado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Space'
+ */
 export const createSpace = async (req: Request, res: Response) => {
   const { branch_id, name, description, capacity, base_price_per_hour, active = true } = req.body;
   const id = uuid();
@@ -31,6 +97,39 @@ export const createSpace = async (req: Request, res: Response) => {
   res.status(201).json(rows[0]);
 };
 
+/**
+ * @openapi
+ * /spaces/{id}:
+ *   get:
+ *     summary: Detalha um espaço
+ *     description: 'Retorna um espaço pelo ID, incluindo fotos.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: 'ID do espaço.'
+ *     responses:
+ *       200:
+ *         description: 'Espaço encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Space'
+ *                 - type: object
+ *                   properties:
+ *                     photos:
+ *                       type: array
+ *                       items: { $ref: '#/components/schemas/Photo' }
+ *       404:
+ *         description: 'Espaço não encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
+ */
 export const getSpace = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
@@ -39,6 +138,44 @@ export const getSpace = async (req: Request, res: Response) => {
   res.json({ ...rows[0], photos: photos.rows });
 };
 
+/**
+ * @openapi
+ * /spaces/{id}:
+ *   put:
+ *     summary: Atualiza um espaço
+ *     description: 'Atualiza dados do espaço. Campos não enviados permanecem inalterados.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string, example: 'Sala Multiuso A' }
+ *               description: { type: string, nullable: true, example: 'Com ar-condicionado.' }
+ *               capacity: { type: integer, example: 40 }
+ *               base_price_per_hour: { type: number, format: float, example: 150 }
+ *               active: { type: boolean, example: true }
+ *     responses:
+ *       200:
+ *         description: 'Espaço atualizado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Space'
+ *       404:
+ *         description: 'Espaço não encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
+ */
 export const updateSpace = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, description, capacity, base_price_per_hour, active } = req.body;
@@ -58,6 +195,41 @@ export const updateSpace = async (req: Request, res: Response) => {
   res.json(rows[0]);
 };
 
+/**
+ * @openapi
+ * /spaces/{id}/active:
+ *   patch:
+ *     summary: Ativa/Desativa um espaço
+ *     description: 'Altera o status ativo do espaço.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [active]
+ *             properties:
+ *               active: { type: boolean, example: true }
+ *     responses:
+ *       200:
+ *         description: 'Status atualizado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Space'
+ *       404:
+ *         description: 'Espaço não encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
+ */
 export const activateSpace = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { active } = req.body as { active: boolean };
@@ -67,13 +239,55 @@ export const activateSpace = async (req: Request, res: Response) => {
   res.json(rows[0]);
 };
 
+/**
+ * @openapi
+ * /spaces/{id}:
+ *   delete:
+ *     summary: Remove um espaço
+ *     description: 'Exclui um espaço pelo ID.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       204:
+ *         description: 'Removido com sucesso.'
+ *       404:
+ *         description: 'Espaço não encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
+ */
 export const deleteSpace = async (req: Request, res: Response) => {
   const { rowCount } = await pool.query('DELETE FROM spaces WHERE id = $1', [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: 'space not found' });
   res.status(204).send();
 };
 
-/* Photos */
+/**
+ * @openapi
+ * /spaces/{id}/photos:
+ *   get:
+ *     summary: Lista fotos do espaço
+ *     description: 'Retorna as fotos do espaço em ordem.'
+ *     tags: [Spaces > Photos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: 'Lista de fotos.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items: { $ref: '#/components/schemas/Photo' }
+ */
 export const listPhotos = async (req: Request, res: Response) => {
   const { rows } = await pool.query(
     'SELECT * FROM photos WHERE space_id = $1 ORDER BY "order" ASC',
@@ -82,6 +296,37 @@ export const listPhotos = async (req: Request, res: Response) => {
   res.json(rows);
 };
 
+/**
+ * @openapi
+ * /spaces/{id}/photos:
+ *   post:
+ *     summary: Adiciona foto ao espaço
+ *     description: 'Cria um registro de foto associado ao espaço.'
+ *     tags: [Spaces > Photos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [url]
+ *             properties:
+ *               url: { type: string, format: uri, example: 'https://cdn.exemplo.com/fotos/abc.jpg' }
+ *               caption: { type: string, nullable: true, example: 'Vista frontal' }
+ *               order: { type: integer, example: 0 }
+ *     responses:
+ *       201:
+ *         description: 'Foto criada.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Photo'
+ */
 export const addPhoto = async (req: Request, res: Response) => {
   const { id: spaceId } = req.params;
   const { url, caption, order = 0 } = req.body;
@@ -94,6 +339,31 @@ export const addPhoto = async (req: Request, res: Response) => {
   res.status(201).json(rows[0]);
 };
 
+/**
+ * @openapi
+ * /spaces/{id}/photos/{photoId}:
+ *   delete:
+ *     summary: Remove foto do espaço
+ *     tags: [Spaces > Photos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: path
+ *         name: photoId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       204:
+ *         description: 'Foto removida.'
+ *       404:
+ *         description: 'Foto não encontrada.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
+ */
 export const deletePhoto = async (req: Request, res: Response) => {
   const { id: spaceId, photoId } = req.params;
   const { rowCount } = await pool.query(
@@ -104,7 +374,46 @@ export const deletePhoto = async (req: Request, res: Response) => {
   res.status(204).send();
 };
 
-/* Availability & Search */
+/**
+ * @openapi
+ * /spaces/{id}/availability:
+ *   get:
+ *     summary: Verifica disponibilidade do espaço
+ *     description: 'Retorna se o espaço está disponível no intervalo informado.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema: { type: string, format: date, example: '2025-10-23' }
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema: { type: string, example: '09:00' }
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema: { type: string, example: '11:00' }
+ *     responses:
+ *       200:
+ *         description: 'Resultado da disponibilidade.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 available: { type: boolean, example: true }
+ *       400:
+ *         description: 'Parâmetros obrigatórios ausentes (date, start, end).'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorBadRequest'
+ */
 export const checkAvailability = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { date, start, end } = req.query as { date: string; start: string; end: string };
@@ -120,6 +429,54 @@ export const checkAvailability = async (req: Request, res: Response) => {
   res.json({ available: rows.length === 0 });
 };
 
+/**
+ * @openapi
+ * /spaces/search:
+ *   get:
+ *     summary: Busca espaços por filtros
+ *     description: 'Busca espaços ativos por localização/capacidade e, opcionalmente, por disponibilidade no intervalo.'
+ *     tags: [Spaces]
+ *     parameters:
+ *       - in: query
+ *         name: city
+ *         required: false
+ *         schema: { type: string, example: 'São Paulo' }
+ *       - in: query
+ *         name: state
+ *         required: false
+ *         schema: { type: string, example: 'SP' }
+ *       - in: query
+ *         name: capacity
+ *         required: false
+ *         schema: { type: integer, example: 20 }
+ *       - in: query
+ *         name: date
+ *         required: false
+ *         schema: { type: string, format: date, example: '2025-10-23' }
+ *       - in: query
+ *         name: start
+ *         required: false
+ *         schema: { type: string, example: '09:00' }
+ *       - in: query
+ *         name: end
+ *         required: false
+ *         schema: { type: string, example: '11:00' }
+ *     responses:
+ *       200:
+ *         description: 'Resultados da busca.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Space'
+ *                   - type: object
+ *                     properties:
+ *                       branch_name: { type: string, example: 'Unidade Centro' }
+ *                       city: { type: string, example: 'São Paulo' }
+ *                       state: { type: string, example: 'SP' }
+ */
 export const searchSpaces = async (req: Request, res: Response) => {
   const { city, state, capacity, date, start, end } = req.query as any;
   const params: any[] = [];
@@ -153,3 +510,34 @@ export const searchSpaces = async (req: Request, res: Response) => {
   const { rows } = await pool.query(sql, params);
   res.json(rows);
 };
+
+
+
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Space:
+ *       type: object
+ *       properties:
+ *         id: { type: string, format: uuid }
+ *         branch_id: { type: string, format: uuid }
+ *         name: { type: string, example: 'Sala Multiuso' }
+ *         description: { type: string, nullable: true, example: 'Espaço amplo e ventilado.' }
+ *         capacity: { type: integer, example: 30 }
+ *         base_price_per_hour: { type: number, format: float, example: 120.5 }
+ *         active: { type: boolean, example: true }
+ *         created_at: { type: string, format: date-time, nullable: true }
+ *         updated_at: { type: string, format: date-time, nullable: true }
+ *
+ *     Photo:
+ *       type: object
+ *       properties:
+ *         id: { type: string, format: uuid }
+ *         space_id: { type: string, format: uuid }
+ *         url: { type: string, format: uri, example: 'https://cdn.exemplo.com/fotos/abc.jpg' }
+ *         caption: { type: string, nullable: true, example: 'Vista frontal' }
+ *         order: { type: integer, example: 0 }
+ *         created_at: { type: string, format: date-time, nullable: true }
+ */
+export {};

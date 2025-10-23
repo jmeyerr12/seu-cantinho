@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
-
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 import router from "./routes/index.js"; // <- mantém .js pois NodeNext exige
 
 const app = express();
@@ -17,6 +18,9 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // Rotas principais
 app.use("/", router);
+
+// Serve a UI
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
 
 // 404 handler
 app.use((req: Request, res: Response) => {
