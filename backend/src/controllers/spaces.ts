@@ -1,9 +1,12 @@
-import { Request, Response } from 'express';
-import { pool } from '../config/db';
-import { v4 as uuid } from 'uuid';
+import { Request, Response } from "express";
+import { pool } from "../config/db";
+import { v4 as uuid } from "uuid";
+import formidable, { File as FormidableFile } from "formidable";
+import fs from "fs";
+import { uploadFile, removeFile } from "../services/s3-service";
 
 /* helpers */
-const toBool = (v: any) => (typeof v === 'string' ? v === 'true' : !!v);
+const toBool = (v: any) => (typeof v === "string" ? v === "true" : !!v);
 
 /**
  * @openapi
@@ -44,15 +47,29 @@ const toBool = (v: any) => (typeof v === 'string' ? v === 'true' : !!v);
  */
 export const listSpaces = async (req: Request, res: Response) => {
   const { branchId, minCapacity, active } = req.query as {
-    branchId?: string; minCapacity?: string; active?: string;
+    branchId?: string;
+    minCapacity?: string;
+    active?: string;
   };
   const filters: string[] = [];
   const params: any[] = [];
-  if (branchId) { params.push(branchId); filters.push(`branch_id = $${params.length}`); }
-  if (minCapacity) { params.push(Number(minCapacity)); filters.push(`capacity >= $${params.length}`); }
-  if (active !== undefined) { params.push(toBool(active)); filters.push(`active = $${params.length}`); }
-  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-  const { rows } = await pool.query(`SELECT * FROM spaces ${where} ORDER BY name ASC`, params);
+  if (branchId) {
+    params.push(branchId);
+    filters.push(`branch_id = $${params.length}`);
+  }
+  if (minCapacity) {
+    params.push(Number(minCapacity));
+    filters.push(`capacity >= $${params.length}`);
+  }
+  if (active !== undefined) {
+    params.push(toBool(active));
+    filters.push(`active = $${params.length}`);
+  }
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+  const { rows } = await pool.query(
+    `SELECT * FROM spaces ${where} ORDER BY name ASC`,
+    params
+  );
   res.json(rows);
 };
 
@@ -86,14 +103,29 @@ export const listSpaces = async (req: Request, res: Response) => {
  *               $ref: '#/components/schemas/Space'
  */
 export const createSpace = async (req: Request, res: Response) => {
-  const { branch_id, name, description, capacity, base_price_per_hour, active = true } = req.body;
+  const {
+    branch_id,
+    name,
+    description,
+    capacity,
+    base_price_per_hour,
+    active = true,
+  } = req.body;
   const id = uuid();
   await pool.query(
     `INSERT INTO spaces (id,branch_id,name,description,capacity,base_price_per_hour,active)
      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-    [id, branch_id, name, description ?? null, capacity, base_price_per_hour, active]
+    [
+      id,
+      branch_id,
+      name,
+      description ?? null,
+      capacity,
+      base_price_per_hour,
+      active,
+    ]
   );
-  const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
+  const { rows } = await pool.query("SELECT * FROM spaces WHERE id = $1", [id]);
   res.status(201).json(rows[0]);
 };
 
@@ -132,9 +164,12 @@ export const createSpace = async (req: Request, res: Response) => {
  */
 export const getSpace = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-  if (!rows[0]) return res.status(404).json({ error: 'space not found' });
-  const photos = await pool.query('SELECT * FROM photos WHERE space_id = $1 ORDER BY "order" ASC', [id]);
+  const { rows } = await pool.query("SELECT * FROM spaces WHERE id = $1", [id]);
+  if (!rows[0]) return res.status(404).json({ error: "space not found" });
+  const photos = await pool.query(
+    'SELECT * FROM photos WHERE space_id = $1 ORDER BY "order" ASC',
+    [id]
+  );
   res.json({ ...rows[0], photos: photos.rows });
 };
 
@@ -190,8 +225,8 @@ export const updateSpace = async (req: Request, res: Response) => {
      WHERE id = $1`,
     [id, name, description, capacity, base_price_per_hour, active]
   );
-  const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-  if (!rows[0]) return res.status(404).json({ error: 'space not found' });
+  const { rows } = await pool.query("SELECT * FROM spaces WHERE id = $1", [id]);
+  if (!rows[0]) return res.status(404).json({ error: "space not found" });
   res.json(rows[0]);
 };
 
@@ -233,9 +268,12 @@ export const updateSpace = async (req: Request, res: Response) => {
 export const activateSpace = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { active } = req.body as { active: boolean };
-  await pool.query('UPDATE spaces SET active = $2, updated_at = NOW() WHERE id = $1', [id, active]);
-  const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-  if (!rows[0]) return res.status(404).json({ error: 'space not found' });
+  await pool.query(
+    "UPDATE spaces SET active = $2, updated_at = NOW() WHERE id = $1",
+    [id, active]
+  );
+  const { rows } = await pool.query("SELECT * FROM spaces WHERE id = $1", [id]);
+  if (!rows[0]) return res.status(404).json({ error: "space not found" });
   res.json(rows[0]);
 };
 
@@ -262,8 +300,10 @@ export const activateSpace = async (req: Request, res: Response) => {
  *               $ref: '#/components/schemas/ErrorNotFound'
  */
 export const deleteSpace = async (req: Request, res: Response) => {
-  const { rowCount } = await pool.query('DELETE FROM spaces WHERE id = $1', [req.params.id]);
-  if (!rowCount) return res.status(404).json({ error: 'space not found' });
+  const { rowCount } = await pool.query("DELETE FROM spaces WHERE id = $1", [
+    req.params.id,
+  ]);
+  if (!rowCount) return res.status(404).json({ error: "space not found" });
   res.status(204).send();
 };
 
@@ -301,42 +341,145 @@ export const listPhotos = async (req: Request, res: Response) => {
  * /spaces/{id}/photos:
  *   post:
  *     summary: Adiciona foto ao espaço
- *     description: 'Cria um registro de foto associado ao espaço.'
+ *     description: Aceita multipart/form-data com campo **image** (arquivo) e campos opcionais **caption** e **order**. Também aceita JSON com `url` já hospedada.
  *     tags: [Spaces > Photos]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
+ *         description: ID do espaço
  *     requestBody:
  *       required: true
  *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Arquivo de imagem (JPEG/PNG, até 4MB)
+ *               caption:
+ *                 type: string
+ *                 example: "Vista frontal"
+ *               order:
+ *                 type: integer
+ *                 example: 0
+ *           encoding:
+ *             image:
+ *               contentType: 
+ *                 - image/jpeg
+ *                 - image/png
  *         application/json:
  *           schema:
  *             type: object
  *             required: [url]
  *             properties:
- *               url: { type: string, format: uri, example: 'https://cdn.exemplo.com/fotos/abc.jpg' }
- *               caption: { type: string, nullable: true, example: 'Vista frontal' }
- *               order: { type: integer, example: 0 }
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 example: "https://cdn.exemplo.com/fotos/abc.jpg"
+ *               caption:
+ *                 type: string
+ *                 example: "Vista frontal"
+ *               order:
+ *                 type: integer
+ *                 example: 0
  *     responses:
  *       201:
- *         description: 'Foto criada.'
+ *         description: Foto criada.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Photo'
+ *       400:
+ *         description: Requisição inválida.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorBadRequest'
+ *       404:
+ *         description: Espaço não encontrado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
  */
 export const addPhoto = async (req: Request, res: Response) => {
   const { id: spaceId } = req.params;
-  const { url, caption, order = 0 } = req.body;
+
+  // verifica se o espaço existe
+  const exists = await pool.query("SELECT 1 FROM spaces WHERE id = $1", [
+    spaceId,
+  ]);
+  if (!exists.rowCount)
+    return res.status(404).json({ error: "space not found" });
+
+  const form = formidable({ multiples: true, keepExtensions: true });
+  const { fields, files } = await new Promise<{
+    fields: formidable.Fields;
+    files: formidable.Files;
+  }>((resolve, reject) => {
+    form.parse(req, (err: any, f: any, fl: any) =>
+      err ? reject(err) : resolve({ fields: f, files: fl })
+    );
+  });
+
+  const caption = String(
+    Array.isArray((fields as any).caption)
+      ? (fields as any).caption[0]
+      : (fields as any).caption || ""
+  );
+  const orderRaw = Array.isArray((fields as any).order)
+    ? (fields as any).order[0]
+    : (fields as any).order;
+  const order = orderRaw ? Number(orderRaw) : 0;
+
+  const fileArray = (files as any).image as
+    | FormidableFile[]
+    | FormidableFile
+    | undefined;
+  if (!fileArray)
+    return res
+      .status(400)
+      .json({ message: "image file is required (multipart/form-data)" });
+
+  const singleFile = Array.isArray(fileArray) ? fileArray[0] : fileArray;
+  if (!singleFile)
+    return res.status(400).json({ message: "Invalid image file." });
+
+  if (singleFile.size > 4 * 1024 * 1024)
+    throw new Error("file size larger than 4MBs");
+  if (
+    !singleFile.mimetype ||
+    !["image/jpeg", "image/png", "image/jpg"].includes(singleFile.mimetype)
+  )
+    throw new Error("file type not supported");
+
+  const tmpPath = (singleFile as any).filepath || (singleFile as any).path;
+  if (!tmpPath)
+    return res.status(400).json({ message: "Invalid image file path." });
+  const fileContent = await fs.promises.readFile(tmpPath);
+
   const photoId = uuid();
+  const bucket = String(
+    process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || "images"
+  );
+  const s3Filename = `${spaceId}_${photoId}.jpg`;
+
+  await uploadFile(bucket, s3Filename, fileContent);
+  await fs.promises.unlink(tmpPath);
+
   await pool.query(
     'INSERT INTO photos (id, space_id, url, caption, "order") VALUES ($1,$2,$3,$4,$5)',
-    [photoId, spaceId, url, caption ?? null, order]
+    [photoId, spaceId, s3Filename, caption || null, order]
   );
-  const { rows } = await pool.query('SELECT * FROM photos WHERE id = $1', [photoId]);
-  res.status(201).json(rows[0]);
+
+  const { rows } = await pool.query("SELECT * FROM photos WHERE id = $1", [
+    photoId,
+  ]);
+  return res.status(201).json(rows[0]);
 };
 
 /**
@@ -344,35 +487,62 @@ export const addPhoto = async (req: Request, res: Response) => {
  * /spaces/{id}/photos/{photoId}:
  *   delete:
  *     summary: Remove foto do espaço
+ *     description: Remove o registro da foto e o arquivo correspondente do bucket S3/MinIO (se aplicável).
  *     tags: [Spaces > Photos]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
+ *         description: ID do espaço
  *       - in: path
  *         name: photoId
  *         required: true
  *         schema: { type: string, format: uuid }
+ *         description: ID da foto
  *     responses:
  *       204:
- *         description: 'Foto removida.'
+ *         description: Foto removida com sucesso (sem conteúdo).
  *       404:
- *         description: 'Foto não encontrada.'
+ *         description: Foto não encontrada para o espaço informado.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorNotFound'
+ *             examples:
+ *               notFound:
+ *                 value:
+ *                   error: "photo not found"
+ *       400:
+ *         description: Requisição inválida (IDs malformados ou parâmetros incorretos).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorBadRequest'
  */
 export const deletePhoto = async (req: Request, res: Response) => {
-  const { id: spaceId, photoId } = req.params;
+  const { id: spaceId, photoId } = req.params
+
+  const q = await pool.query(
+    'SELECT url FROM photos WHERE id = $1 AND space_id = $2',
+    [photoId, spaceId]
+  )
+  if (!q.rows[0]) return res.status(404).json({ error: 'photo not found' })
+
+  const key = q.rows[0].url
+  const bucket = String(process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || 'images')
+
+  try { await removeFile(bucket, key) } catch {}
+
   const { rowCount } = await pool.query(
     'DELETE FROM photos WHERE id = $1 AND space_id = $2',
     [photoId, spaceId]
-  );
-  if (!rowCount) return res.status(404).json({ error: 'photo not found' });
-  res.status(204).send();
-};
+  )
+  if (!rowCount) return res.status(404).json({ error: 'photo not found' })
+
+  res.status(204).send()
+}
+
 
 /**
  * @openapi
@@ -416,8 +586,13 @@ export const deletePhoto = async (req: Request, res: Response) => {
  */
 export const checkAvailability = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { date, start, end } = req.query as { date: string; start: string; end: string };
-  if (!date || !start || !end) return res.status(400).json({ error: 'date, start, end required' });
+  const { date, start, end } = req.query as {
+    date: string;
+    start: string;
+    end: string;
+  };
+  if (!date || !start || !end)
+    return res.status(400).json({ error: "date, start, end required" });
 
   const q = `
     SELECT 1 FROM reservations
@@ -480,26 +655,39 @@ export const checkAvailability = async (req: Request, res: Response) => {
 export const searchSpaces = async (req: Request, res: Response) => {
   const { city, state, capacity, date, start, end } = req.query as any;
   const params: any[] = [];
-  const filters: string[] = ['s.active = TRUE'];
+  const filters: string[] = ["s.active = TRUE"];
 
-  if (capacity) { params.push(Number(capacity)); filters.push(`s.capacity >= $${params.length}`); }
-  if (state)    { params.push(state); filters.push(`b.state = $${params.length}`); }
-  if (city)     { params.push(city);  filters.push(`b.city  = $${params.length}`); }
+  if (capacity) {
+    params.push(Number(capacity));
+    filters.push(`s.capacity >= $${params.length}`);
+  }
+  if (state) {
+    params.push(state);
+    filters.push(`b.state = $${params.length}`);
+  }
+  if (city) {
+    params.push(city);
+    filters.push(`b.city  = $${params.length}`);
+  }
 
   // disponibilidade no intervalo se informados data/horários
-  let availabilityClause = '';
+  let availabilityClause = "";
   if (date && start && end) {
     params.push(date, start, end);
     availabilityClause = `
       AND NOT EXISTS (
         SELECT 1 FROM reservations r
-        WHERE r.space_id = s.id AND r.date = $${params.length - 2} AND r.status <> 'CANCELLED'
-          AND NOT (r.end_time <= $${params.length - 1}::time OR r.start_time >= $${params.length}::time)
+        WHERE r.space_id = s.id AND r.date = $${
+          params.length - 2
+        } AND r.status <> 'CANCELLED'
+          AND NOT (r.end_time <= $${
+            params.length - 1
+          }::time OR r.start_time >= $${params.length}::time)
       )
     `;
   }
 
-  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
   const sql = `
     SELECT s.*, b.name AS branch_name, b.city, b.state
     FROM spaces s
@@ -510,8 +698,6 @@ export const searchSpaces = async (req: Request, res: Response) => {
   const { rows } = await pool.query(sql, params);
   res.json(rows);
 };
-
-
 
 /**
  * @openapi

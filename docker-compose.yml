@@ -24,7 +24,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: minio
+    container_name: seu-cantinho-minio
     command: server --console-address ":9001" /data
     environment:
       - MINIO_ROOT_USER=minioadmin
@@ -39,7 +39,7 @@ services:
 
   minio-setup:
     image: minio/mc:latest
-    container_name: minio-setup
+    container_name: seu-cantinho-minio-setup
     depends_on:
       - minio
     environment:
@@ -47,16 +47,16 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
       - S3_ACCESS_KEY_ID=appkey
       - S3_SECRET_ACCESS_KEY=appsecret
-      - S3_IMAGE_BUCKET=image
+      - S3_PHOTO_BUCKET=photos
 
     entrypoint: >
       /bin/sh -c "
       until (mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD) do
         echo 'Aguardando MinIO...'; sleep 2;
       done &&
-      mc mb -p local/$$S3_IMAGE_BUCKET || true &&
+      mc mb -p local/$$S3_PHOTO_BUCKET || true &&
       mc admin user add local $$S3_ACCESS_KEY_ID $$S3_SECRET_ACCESS_KEY || true &&
-      mc admin policy attach local readwrite --user $$ACCESS_KEY_ID &&
+      mc admin policy attach local readwrite --user $$S3_ACCESS_KEY_ID &&
       echo 'Buckets criados e usuário pronto!'"
     networks:
       - seu-cantinho-network
