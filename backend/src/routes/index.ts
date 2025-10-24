@@ -1,4 +1,7 @@
 import { Router } from "express";
+
+import { tokenValidation } from "../middleware/auth";
+
 import {
   listBranches,
   createBranch,
@@ -28,6 +31,7 @@ import {
   getUser,
   updateUser,
   deleteUser,
+  loginUser
 } from "../controllers/users";
 
 import {
@@ -78,6 +82,7 @@ router.get("/spaces/:id/availability", checkAvailability);
 router.get("/spaces/search", searchSpaces);
 
 /* users */
+router.post('/auth/login', loginUser);
 router.get("/users", listUsers);
 router.post("/users", createUser);
 router.get("/users/:id", getUser);

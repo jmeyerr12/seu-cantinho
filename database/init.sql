@@ -42,12 +42,15 @@ CREATE TABLE photos (
 
 -- USERS (User)
 CREATE TABLE users (
-  id         UUID PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  phone      TEXT,
-  role       TEXT NOT NULL,  -- ADMIN | MANAGER | CUSTOMER
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  id             UUID PRIMARY KEY,
+  name           TEXT NOT NULL,
+  email          TEXT NOT NULL UNIQUE,
+  phone          TEXT,
+  role           TEXT NOT NULL DEFAULT 'CUSTOMER',  -- ADMIN | MANAGER | CUSTOMER
+  password_hash  TEXT NOT NULL,
+  last_login_at  TIMESTAMP,
+  created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- RESERVATIONS (Reservation) — feita por um User, para um Space/Branch

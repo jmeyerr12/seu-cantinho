@@ -1,5 +1,5 @@
 @startuml
-title "Seu Cantinho — Diagrama de Classes (Domínio) — Sem Enums"
+title "Seu Cantinho — Diagrama de Classes (Domínio) — Sem Enums (limpo)"
 
 ' ========= CLASSES =========
 class Branch {
@@ -30,26 +30,31 @@ class Photo {
   +url: String
   +caption: String
   +order: int
+  +createdAt: DateTime
+  +updatedAt: DateTime
 }
 
 class User {
   +id: UUID
   +name: String
-  +email: String
+  +email: String {unique}
   +phone: String
-  +role: String       ' ADMIN | MANAGER | CUSTOMER
+  +role: String
+  +passwordHash: String
+  +lastLoginAt: DateTime
   +createdAt: DateTime
+  +updatedAt: DateTime
 }
 
 class Reservation {
   +id: UUID
   +spaceId: UUID
-  +branchId: UUID
+  +branchId: UUID {derived}
   +customerId: UUID
   +date: Date
   +startTime: Time
   +endTime: Time
-  +status: String     ' PENDING | CONFIRMED | CANCELLED
+  +status: String
   +totalAmount: Decimal
   +depositRequiredPct: Decimal
   +notes: String
@@ -61,12 +66,13 @@ class Payment {
   +id: UUID
   +reservationId: UUID
   +amount: Decimal
-  +method: String     ' PIX | CARD | BOLETO | CASH
-  +status: String     ' PENDING | AUTHORIZED | PAID | REFUNDED | CANCELLED
-  +purpose: String    ' DEPOSIT | BALANCE
+  +method: String
+  +status: String
+  +purpose: String
   +paidAt: DateTime
   +externalRef: String
   +createdAt: DateTime
+  +updatedAt: DateTime
 }
 
 ' ========= RELACIONAMENTOS =========
@@ -75,7 +81,7 @@ Space  "1" o-- "0..*" Photo
 
 User  "1" --> "0..*" Reservation : "faz >>"
 Reservation "*" --> "1" Space
-Reservation "*" --> "1" Branch
+Reservation "*" --> "1" Branch : "via branchId {derived}"
 Reservation "1" o-- "0..*" Payment
 
 @enduml
