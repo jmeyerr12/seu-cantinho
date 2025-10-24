@@ -76,6 +76,18 @@ export const listUsers = async (req: Request, res: Response) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/User'
+ *       400:
+ *         description: 'Requisição inválida.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorBadRequest'
+ *       409:
+ *         description: 'Conflito (email já existe).'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 export const createUser = async (req: Request, res: Response) => {
   const { name, email, phone, role, password } = req.body as {
@@ -136,8 +148,7 @@ export const createUser = async (req: Request, res: Response) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties: { error: { type: string, example: user not found } }
+ *               $ref: '#/components/schemas/ErrorNotFound'
  */
 export const getUser = async (req: Request, res: Response) => {
   try {
@@ -187,6 +198,10 @@ export const getUser = async (req: Request, res: Response) => {
  *             schema: { $ref: '#/components/schemas/User' }
  *       404:
  *         description: 'Usuário não encontrado.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorNotFound'
  */
 export const updateUser = async (req: Request, res: Response) => {
   try {
@@ -289,8 +304,18 @@ export const deleteUser = async (req: Request, res: Response) => {
  *                 token_type: { type: string, example: Bearer }
  *                 expires_in: { type: string, example: '1h' }
  *                 user: { $ref: '#/components/schemas/User' }
+ *       400:
+ *         description: 'Requisição inválida.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorBadRequest'
  *       401:
  *         description: 'Credenciais inválidas.'
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
@@ -344,12 +369,35 @@ export const loginUser = async (req: Request, res: Response) => {
  *       type: object
  *       properties:
  *         id: { type: string, format: uuid }
- *         name: { type: string, example: 'Maria Oliveira' }
- *         email: { type: string, format: email, example: 'maria@email.com' }
- *         phone: { type: string, nullable: true, example: '+55 11 98888-0000' }
- *         role: { type: string, example: 'CUSTOMER' }
+ *         name: { type: string }
+ *         email: { type: string, format: email }
+ *         phone: { type: string, nullable: true }
+ *         role: { type: string }
  *         created_at: { type: string, format: date-time, nullable: true }
  *         updated_at: { type: string, format: date-time, nullable: true }
  *         last_login_at: { type: string, format: date-time, nullable: true }
+ *     ErrorResponse:
+ *       type: object
+ *       required: [error, message]
+ *       properties:
+ *         error: { type: string, example: bad_request }
+ *         message: { type: string, example: "campo obrigatório ausente" }
+ *         status: { type: integer, example: 400 }
+ *         path: { type: string, example: "/users" }
+ *         timestamp: { type: string, format: date-time, example: "2025-10-23T10:20:30Z" }
+ *     ErrorBadRequest:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ErrorResponse'
+ *         - type: object
+ *           properties:
+ *             error: { type: string, enum: [bad_request], example: bad_request }
+ *             status: { type: integer, example: 400 }
+ *     ErrorNotFound:
+ *       allOf:
+ *         - $ref: '#/components/schemas/ErrorResponse'
+ *         - type: object
+ *           properties:
+ *             error: { type: string, enum: [not_found], example: not_found }
+ *             status: { type: integer, example: 404 }
  */
 export {};
