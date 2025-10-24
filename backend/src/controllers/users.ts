@@ -50,11 +50,19 @@ import { v4 as uuid } from 'uuid';
  *                     example: '2025-10-23T10:20:30Z'
  */
 export const listUsers = async (req: Request, res: Response) => {
-  const { role } = req.query as { role?: string };
-  const params: any[] = [];
-  const where = role ? (params.push(role), `WHERE role = $1`) : '';
-  const { rows } = await pool.query(`SELECT id,name,email,phone,role,created_at FROM users ${where} ORDER BY created_at DESC`, params);
-  res.json(rows);
+  try {
+    const { role } = req.query as { role?: string };
+    const params: any[] = [];
+    const where = role ? (params.push(role), `WHERE role = $1`) : '';
+    const { rows } = await pool.query(
+      `SELECT id,name,email,phone,role,created_at FROM users ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json(rows);
+  } catch (err: any) {
+    console.error('[listUsers]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
 };
 
 /**
@@ -148,9 +156,8 @@ export const createUser = async (req: Request, res: Response) => {
 
     return res.status(201).json(rows[0]);
   } catch (err: any) {
-
-    console.error('createUser error:', err);
-    return res.status(500).json({ error: 'internal server error' });
+    console.error('[createUser]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -212,9 +219,17 @@ export const createUser = async (req: Request, res: Response) => {
  *                   example: user not found
  */
 export const getUser = async (req: Request, res: Response) => {
-  const { rows } = await pool.query('SELECT id,name,email,phone,role,created_at FROM users WHERE id = $1', [req.params.id]);
-  if (!rows[0]) return res.status(404).json({ error: 'user not found' });
-  res.json(rows[0]);
+  try {
+    const { rows } = await pool.query(
+      'SELECT id,name,email,phone,role,created_at FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'user not found' });
+    res.json(rows[0]);
+  } catch (err: any) {
+    console.error('[getUser]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
 };
 
 /**
@@ -298,20 +313,28 @@ export const getUser = async (req: Request, res: Response) => {
  *                   example: user not found
  */
 export const updateUser = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { name, email, phone, role } = req.body;
-  await pool.query(
-    `UPDATE users SET
-      name = COALESCE($2,name),
-      email = COALESCE($3,email),
-      phone = COALESCE($4,phone),
-      role  = COALESCE($5,role)
-     WHERE id = $1`,
-    [id, name, email, phone, role]
-  );
-  const { rows } = await pool.query('SELECT id,name,email,phone,role,created_at FROM users WHERE id = $1', [id]);
-  if (!rows[0]) return res.status(404).json({ error: 'user not found' });
-  res.json(rows[0]);
+  try {
+    const { id } = req.params;
+    const { name, email, phone, role } = req.body;
+    await pool.query(
+      `UPDATE users SET
+        name = COALESCE($2,name),
+        email = COALESCE($3,email),
+        phone = COALESCE($4,phone),
+        role  = COALESCE($5,role)
+       WHERE id = $1`,
+      [id, name, email, phone, role]
+    );
+    const { rows } = await pool.query(
+      'SELECT id,name,email,phone,role,created_at FROM users WHERE id = $1',
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'user not found' });
+    res.json(rows[0]);
+  } catch (err: any) {
+    console.error('[updateUser]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
 };
 
 /**
@@ -346,9 +369,14 @@ export const updateUser = async (req: Request, res: Response) => {
  *                   example: user not found
  */
 export const deleteUser = async (req: Request, res: Response) => {
-  const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-  if (!rowCount) return res.status(404).json({ error: 'user not found' });
-  res.status(204).send();
+  try {
+    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'user not found' });
+    res.status(204).send();
+  } catch (err: any) {
+    console.error('[deleteUser]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
 };
 
 
