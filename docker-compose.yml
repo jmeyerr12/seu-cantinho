@@ -7,6 +7,20 @@ volumes:
   minio_data:
 
 services:
+  backend:
+    container_name: seu-cantinho-api
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - seu-cantinho-network
+
   db:
     image: postgres:16
     container_name: seu_cantinho_db
