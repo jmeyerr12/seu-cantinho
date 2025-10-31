@@ -1,4 +1,4 @@
-export const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+export const BACKEND_URL = process.env.BACKEND_URL;
 
 export async function serverApi(path: string, init: RequestInit = {}) {
   const res = await fetch(`${BACKEND_URL}${path}`, { ...init, cache: 'no-store' as RequestCache });

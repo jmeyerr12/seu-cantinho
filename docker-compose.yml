@@ -13,7 +13,7 @@ services:
       context: ./backend
       dockerfile: Containerfile
     env_file:
-      - ./backend/.env
+      - ./backend/.env.prod
     ports:
       - "5000:5000"
     depends_on:

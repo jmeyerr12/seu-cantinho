@@ -52,7 +52,7 @@ export default function RegisterPage() {
 
       const data = await loginRes.json(); // esperado: { token, user }
       login(data.user, data.token);
-      router.push('/');
+      router.push('/login');
     } catch (e: any) {
       setErr(e?.message || 'Erro inesperado.');
     } finally {

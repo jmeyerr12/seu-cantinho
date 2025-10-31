@@ -57,7 +57,6 @@ export default function NewReservationPage() {
 
     try {
       setSubmitting(true);
-      // 🔴 IMPORTANTE:
       // Ajuste os campos abaixo conforme seu backend espera.
       // Exemplo comum: { spaceId, date, startTime, endTime, notes }
       const payload = { spaceId: Number(spaceId), date, startTime: start, endTime: end, notes };
