@@ -21,6 +21,7 @@ export default function NewReservationPage() {
   const [availability, setAvailability] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     (async () => {
@@ -32,6 +33,10 @@ export default function NewReservationPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    console.log(spaces)
+  }, [spaces])
 
   const selectedSpace = useMemo(
     () => spaces.find(s => String(s.id) === String(spaceId)),
@@ -59,10 +64,14 @@ export default function NewReservationPage() {
       setSubmitting(true);
       // Ajuste os campos abaixo conforme seu backend espera.
       // Exemplo comum: { spaceId, date, startTime, endTime, notes }
-      const payload = { spaceId: Number(spaceId), date, startTime: start, endTime: end, notes };
+      const payload = { spaceId: spaceId, date, startTime: start, endTime: end, notes };
       const r = await apiFetch('/reservations', {
         method: 'POST',
-        body: JSON.stringify(payload)
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, 
+        },
+        body: JSON.stringify(payload),
       });
       // se tudo ok, volte para a lista
       router.push('/reservations');

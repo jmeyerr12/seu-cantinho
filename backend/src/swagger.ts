@@ -22,6 +22,11 @@ const options: Options = {
         },
       },
     },
+    security: [
+      {
+        bearerAuth: [], // Aplica globalmente a todas as rotas
+      },
+    ],
   },
   // Aponte para os arquivos que contêm as anotações JSDoc
   apis: ['src/**/*.ts'], // se rodar o build e servir de /dist, mude para 'dist/**/*.js'
