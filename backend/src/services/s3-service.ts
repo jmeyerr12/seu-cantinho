@@ -71,7 +71,7 @@ export const listFiles = async (bucketName: string) => {
 /*
   Gera URL assinada para download
 */
-export const generatePresignedUrl = async (bucketName: string, key: string, expiresIn: number = 300) => {
+export const generatePresignedUrl = async (key: string, expiresIn: number = 300) => {
   const bucket = String(process.env.S3_PHOTO_BUCKET);
 
   const command = new GetObjectCommand({

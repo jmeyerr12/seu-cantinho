@@ -3,7 +3,7 @@ import { pool } from "../config/db";
 import { v4 as uuid } from "uuid";
 import formidable, { File as FormidableFile } from "formidable";
 import fs from "fs";
-import { uploadFile, removeFile } from "../services/s3-service";
+import { uploadFile, removeFile, downloadFile, generatePresignedUrl } from "../services/s3-service";
 
 /* helpers */
 const toBool = (v: any) => (typeof v === "string" ? v === "true" : !!v);
@@ -437,7 +437,7 @@ export const addPhoto = async (req: Request, res: Response) => {
     const s3Filename = `${spaceId}_${photoId}.jpg`;
 
     await uploadFile(bucket, s3Filename, fileContent);
-    try { await fs.promises.unlink(tmpPath); } catch {}
+    try { await fs.promises.unlink(tmpPath); } catch { }
 
     await pool.query(
       'INSERT INTO photos (id, space_id, url, caption, "order") VALUES ($1,$2,$3,$4,$5)',
@@ -626,8 +626,8 @@ export const searchSpaces = async (req: Request, res: Response) => {
     const filters: string[] = ['s.active = TRUE'];
 
     if (capacity) { params.push(Number(capacity)); filters.push(`s.capacity >= $${params.length}`); }
-    if (state)    { params.push(state);            filters.push(`b.state = $${params.length}`); }
-    if (city)     { params.push(city);             filters.push(`b.city  = $${params.length}`); }
+    if (state) { params.push(state); filters.push(`b.state = $${params.length}`); }
+    if (city) { params.push(city); filters.push(`b.city  = $${params.length}`); }
 
     let availabilityClause = '';
     if (date && start && end) {
@@ -655,6 +655,74 @@ export const searchSpaces = async (req: Request, res: Response) => {
   }
 };
 
+function guessContentType(key: string): string {
+  const ext = key.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'png': return 'image/png';
+    case 'gif': return 'image/gif';
+    case 'webp': return 'image/webp';
+    case 'svg': return 'image/svg+xml';
+    case 'pdf': return 'application/pdf';
+    default: return 'application/octet-stream';
+  }
+}
+
+
+/**
+ * @openapi
+ * /spaces/{id}/photos/{photoId}/image:
+ *   get:
+ *     summary: Exibe a imagem da foto (inline)
+ *     description: 'Faz o streaming do arquivo do S3/MinIO para visualização inline.'
+ *     tags: [Spaces > Photos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: ID do espaço
+ *       - in: path
+ *         name: photoId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: ID da foto
+ *     responses:
+ *       200:
+ *         description: Imagem exibida.
+ *         content:
+ *           image/jpeg: {}
+ *           image/png: {}
+ *           image/webp: {}
+ *       404:
+ *         description: Foto não encontrada.
+ */
+export const viewPhotoImage = async (req: Request, res: Response) => {
+  try {
+    const { id: spaceId, photoId } = req.params;
+
+    // Busca a key (armazenada no campo "url")
+    const q = await pool.query(
+      'SELECT url FROM photos WHERE id = $1 AND space_id = $2',
+      [photoId, spaceId]
+    );
+    if (!q.rows[0]) return res.status(404).json({ error: 'photo not found' });
+
+    const key = q.rows[0].url as string;
+    const bucket = String(process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || 'images');
+
+    const buf = await downloadFile(bucket, key);
+
+    res.setHeader('Content-Type', guessContentType(key));
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(key)}"`);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(buf);
+  } catch (err: any) {
+    console.error('[viewPhotoImage]', err);
+    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
+};
 
 /**
  * @openapi
@@ -683,4 +751,4 @@ export const searchSpaces = async (req: Request, res: Response) => {
  *         order: { type: integer, example: 0 }
  *         created_at: { type: string, format: date-time, nullable: true }
  */
-export {};
+export { };

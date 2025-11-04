@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { tokenValidation, authorize } from "../middleware/auth";
 import { listBranches, createBranch, getBranch, updateBranch, deleteBranch, listSpacesOfBranch } from "../controllers/branches";
-import { listSpaces, createSpace, getSpace, updateSpace, activateSpace, deleteSpace, listPhotos, addPhoto, deletePhoto, checkAvailability, searchSpaces } from "../controllers/spaces";
+import { listSpaces, createSpace, getSpace, updateSpace, activateSpace, deleteSpace, listPhotos, addPhoto, deletePhoto, checkAvailability, searchSpaces, viewPhotoImage } from "../controllers/spaces";
 import { listUsers, createUser, getUser, updateUser, deleteUser, loginUser } from "../controllers/users";
 import { listReservations, createReservation, getReservation, updateReservation, confirmReservation, cancelReservation, listPaymentsOfReservation, byDay } from "../controllers/reservations";
 import { createPayment, getPayment, markPaid, deletePayment, webhook } from "../controllers/payment";
@@ -29,6 +29,7 @@ router.patch("/spaces/:id/activate", tokenValidation(), authorize("ADMIN", "MANA
 router.delete("/spaces/:id", tokenValidation(), authorize("ADMIN", "MANAGER"), deleteSpace);
 router.post("/spaces/:id/photos", tokenValidation(), authorize("ADMIN", "MANAGER"), addPhoto);
 router.delete("/spaces/:id/photos/:photoId", tokenValidation(), authorize("ADMIN", "MANAGER"), deletePhoto);
+router.get('/spaces/:id/photos/:photoId/image', viewPhotoImage);
 
 router.post("/users", createUser);
 router.get("/users", tokenValidation(), authorize("ADMIN", "MANAGER"), listUsers);
