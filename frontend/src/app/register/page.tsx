@@ -41,17 +41,6 @@ export default function RegisterPage() {
         throw new Error(msg);
       }
 
-      // login automático após registrar
-      const loginRes = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (!loginRes.ok) throw new Error('Conta criada, mas falhou o login automático.');
-
-      const data = await loginRes.json(); // esperado: { token, user }
-      login(data.user, data.token);
       router.push('/login');
     } catch (e: any) {
       setErr(e?.message || 'Erro inesperado.');

@@ -1,5 +1,5 @@
 import './globals.css';
-import Link from 'next/link';
+import NavBar from '@/components/NavBar';
 import AuthActions from '@/components/AuthActions';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -8,10 +8,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <header className='border-b'>
           <div className='max-w-5xl mx-auto flex items-center justify-between p-4'>
-            <nav className='flex gap-4'>
-              <Link href='/' className='font-semibold'>Seu Cantinho</Link>
-              <Link href='/reservations'>Minhas Reservas</Link>
-            </nav>
+            <NavBar />
             <AuthActions />
           </div>
         </header>

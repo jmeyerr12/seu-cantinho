@@ -42,7 +42,7 @@ export default function ReservationsPage() {
         {!loading && !err && (
           <div className='border rounded'>
             <table className='w-full text-sm'>
-              <thead className='bg-gray-50'>
+              <thead className='bg-gray-500'>
                 <tr>
                   <th className='text-left p-2'>#</th>
                   <th className='text-left p-2'>Espaço</th>

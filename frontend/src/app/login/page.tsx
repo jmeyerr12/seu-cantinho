@@ -21,8 +21,7 @@ export default function LoginPage() {
 
     if (res.ok) {
       const data = await res.json();
-      // Supondo que o backend retorna { token, user }
-      login(data.user, data.token);
+      login(data.user, data.access_token);
       router.push('/');
     } else {
       setError('Credenciais inválidas');
