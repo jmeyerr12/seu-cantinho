@@ -8,6 +8,7 @@ export default function SpacePage() {
   const { id } = useParams<{ id: string }>();
   const [space, setSpace] = useState<any>(null);
   const [err, setErr] = useState('');
+  const [photoIds, setPhotoIds] = useState([]);
 
   useEffect(() => {
     (async () => {
