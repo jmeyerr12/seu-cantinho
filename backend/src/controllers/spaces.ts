@@ -669,7 +669,6 @@ function guessContentType(key: string): string {
   }
 }
 
-
 /**
  * @openapi
  * /spaces/{id}/photos/{photoId}/image:
@@ -721,6 +720,86 @@ export const viewPhotoImage = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('[viewPhotoImage]', err);
     res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+  }
+};
+
+/**
+ * @openapi
+ * /spaces/{id}/photos/links:
+ *   get:
+ *     summary: Lista links de acesso às fotos do espaço
+ *     description: |
+ *       Retorna um vetor de objetos com links de acesso para exibição das imagens no frontend.
+ *       Se `mode=presigned`, retorna URLs pré-assinadas do S3/MinIO (com expiração).
+ *       Caso contrário, retorna links internos da API que fazem proxy da imagem.
+ *     tags: [Spaces > Photos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *         description: ID do espaço
+ *       - in: query
+ *         name: mode
+ *         required: false
+ *         schema: { type: string, enum: [proxy, presigned], default: proxy }
+ *         description: Tipo de link retornado.
+ *     responses:
+ *       200:
+ *         description: Vetor de links de imagem.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string, format: uuid }
+ *                       href: { type: string }
+ *                       contentType: { type: string }
+ *                       expiresAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Presente apenas quando `mode=presigned`.
+ *       404:
+ *         description: Espaço ou fotos não encontrados.
+ */
+
+export const listPhotoLinks = async (req: Request, res: Response) => {
+  try {
+    const { id: spaceId } = req.params;
+
+    // Busca id e url (onde url é a key armazenada no bucket)
+    const q = await pool.query(
+      'SELECT id, url FROM photos WHERE space_id = $1 ORDER BY id',
+      [spaceId]
+    );
+
+    // Pode ser que não haja fotos — devolve lista vazia mesmo assim
+    if (q.rows.length === 0) {
+      return res.json({ items: [] });
+    }
+
+    // Monta links internos (proxy):
+    // /spaces/{id}/photos/{photoId}/image
+    const items = q.rows.map((r: { id: string; url: string }) => {
+      return {
+        id: r.id,
+        href: `/spaces/${encodeURIComponent(spaceId)}/photos/${encodeURIComponent(r.id)}/image`,
+      };
+    });
+
+    // Cache leve
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    return res.json({ items });
+  } catch (err: any) {
+    console.error('[listPhotoLinks]', err);
+    return res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
