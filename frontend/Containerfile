@@ -1,0 +1,18 @@
+FROM node:25.0.0
+
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+COPY package.json ./
+RUN pnpm install
+
+COPY . .
+
+ARG BACKEND_URL
+ENV BACKEND_URL=$BACKEND_URL
+
+RUN pnpm run build
+
+EXPOSE 3000
+CMD ["pnpm", "start"]

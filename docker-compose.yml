@@ -21,6 +21,20 @@ services:
     networks:
       - seu-cantinho-network
 
+  frontend:
+    container_name: seu-cantinho-interface
+    build:
+      context: ./frontend
+      dockerfile: Containerfile 
+      args:
+        BACKEND_URL: "http://localhost:5000"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
+    networks:
+      - seu-cantinho-network
+
   db:
     image: postgres:16
     container_name: seu_cantinho_db
