@@ -25,9 +25,12 @@ services:
     container_name: seu-cantinho-interface
     build:
       context: ./frontend
-      dockerfile: Containerfile 
+      dockerfile: Containerfile
       args:
-        BACKEND_URL: "http://localhost:5000"
+        BACKEND_URL: "http://backend:5000"
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: "http://backend:5000"
+      BACKEND_URL: "http://backend:5000"   # <- ESSA é a que o Next usa no server
     ports:
       - "3001:3001"
     depends_on:

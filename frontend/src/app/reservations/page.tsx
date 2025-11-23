@@ -39,7 +39,7 @@ export default function ReservationsPage() {
 
         let url = '/reservations';
         if (user?.role === 'CUSTOMER' && user.id) {
-          const qs = new URLSearchParams({ customerId: user.id });
+          const qs = new URLSearchParams({ customerId: String(user.id) });
           url = `/reservations?${qs.toString()}`;
         }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
 import { apiFetch } from '@/lib/api';
@@ -8,7 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 type Branch = { id: string; name: string; city?: string; state?: string };
 
-export default function NewSpacePage() {
+// Componente interno: usa useSearchParams
+function NewSpaceInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const preBranchId = sp.get('branchId') ?? '';
@@ -52,7 +53,6 @@ export default function NewSpacePage() {
     try {
       setSubmitting(true);
 
-      // 🔑 Payload exatamente como o backend espera
       const payload = {
         branch_id: branchId,
         name: name.trim(),
@@ -71,7 +71,7 @@ export default function NewSpacePage() {
         body: JSON.stringify(payload),
       });
 
-      router.push('/'); // ajuste para /spaces se tiver listagem
+      router.push('/'); // ou /spaces
     } catch (e: any) {
       setErr(e.message ?? 'Erro ao criar espaço');
     } finally {
@@ -179,5 +179,14 @@ export default function NewSpacePage() {
         </form>
       </div>
     </RequireAuth>
+  );
+}
+
+// Componente exportado: coloca o Suspense em volta
+export default function NewSpacePage() {
+  return (
+    <Suspense fallback={<div>Carregando…</div>}>
+      <NewSpaceInner />
+    </Suspense>
   );
 }

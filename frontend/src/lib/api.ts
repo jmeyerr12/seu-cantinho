@@ -1,3 +1,6 @@
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:5000';
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -8,14 +11,13 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     ...options.headers,
   };
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
     cache: 'no-store' as RequestCache,
   });
 
   if (!res.ok) {
-    // se o token for inválido ou expirado
     if (res.status === 401 || res.status === 403) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
@@ -23,7 +25,6 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       }
     }
 
-    // repasse o JSON de erro se existir (útil pra debug)
     let details = '';
     try {
       details = JSON.stringify(await res.json());

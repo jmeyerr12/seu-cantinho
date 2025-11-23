@@ -61,7 +61,11 @@ export default function ReservationDetailsPage() {
 
   const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const isCustomer = user?.role === 'CUSTOMER';
-  const isOwner = !!(isCustomer && resv && user?.id === resv.customer_id);
+  const isOwner = !!(
+    isCustomer &&
+    resv &&
+    Number(user?.id) === Number(resv.customer_id)
+  );  
 
   async function loadAll() {
     setLoading(true);
