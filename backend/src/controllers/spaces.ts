@@ -1,12 +1,14 @@
-import { Request, Response } from "express";
-import { pool } from "../config/db";
-import { v4 as uuid } from "uuid";
-import formidable, { File as FormidableFile } from "formidable";
-import fs from "fs";
-import { uploadFile, removeFile, downloadFile, generatePresignedUrl } from "../services/s3-service";
+import { Request, Response } from 'express';
+import * as spaceService from '../services/spaceService';
 
-/* helpers */
-const toBool = (v: any) => (typeof v === "string" ? v === "true" : !!v);
+/* helpers de query */
+const parseBoolFromQuery = (v: unknown): boolean | undefined => {
+  if (typeof v === 'string') {
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+  }
+  return undefined;
+};
 
 /**
  * @openapi
@@ -48,19 +50,30 @@ const toBool = (v: any) => (typeof v === "string" ? v === "true" : !!v);
 export const listSpaces = async (req: Request, res: Response) => {
   try {
     const { branchId, minCapacity, active } = req.query as {
-      branchId?: string; minCapacity?: string; active?: string;
+      branchId?: string;
+      minCapacity?: string;
+      active?: string;
     };
-    const filters: string[] = [];
-    const params: any[] = [];
-    if (branchId) { params.push(branchId); filters.push(`branch_id = $${params.length}`); }
-    if (minCapacity) { params.push(Number(minCapacity)); filters.push(`capacity >= $${params.length}`); }
-    if (active !== undefined) { params.push(toBool(active)); filters.push(`active = $${params.length}`); }
-    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await pool.query(`SELECT * FROM spaces ${where} ORDER BY name ASC`, params);
-    res.json(rows);
+
+    const minCapNum =
+      typeof minCapacity === 'string' && minCapacity.trim() !== ''
+        ? Number(minCapacity)
+        : undefined;
+
+    const activeBool = parseBoolFromQuery(active);
+
+    const spaces = await spaceService.listSpaces({
+      branchId,
+      minCapacity: Number.isFinite(minCapNum ?? NaN) ? minCapNum : undefined,
+      active: activeBool
+    });
+
+    res.json(spaces);
   } catch (err: any) {
     console.error('[listSpaces]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -95,21 +108,39 @@ export const listSpaces = async (req: Request, res: Response) => {
  */
 export const createSpace = async (req: Request, res: Response) => {
   try {
-    const { branch_id, name, description, capacity, base_price_per_hour, active = true } = req.body;
-    const id = uuid();
-    await pool.query(
-      `INSERT INTO spaces (id,branch_id,name,description,capacity,base_price_per_hour,active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [id, branch_id, name, description ?? null, capacity, base_price_per_hour, active]
-    );
-    const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-    res.status(201).json(rows[0]);
+    const {
+      branch_id,
+      name,
+      description,
+      capacity,
+      base_price_per_hour,
+      active
+    } = req.body;
+
+    if (!branch_id || !name) {
+      return res.status(400).json({
+        error: 'missing_required_fields',
+        message: 'branch_id and name are required'
+      });
+    }
+
+    const space = await spaceService.createSpace({
+      branch_id,
+      name,
+      description,
+      capacity,
+      base_price_per_hour,
+      active
+    });
+
+    res.status(201).json(space);
   } catch (err: any) {
     console.error('[createSpace]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
-
 
 /**
  * @openapi
@@ -147,13 +178,19 @@ export const createSpace = async (req: Request, res: Response) => {
 export const getSpace = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-    if (!rows[0]) return res.status(404).json({ error: 'space not found' });
-    const photos = await pool.query('SELECT * FROM photos WHERE space_id = $1 ORDER BY "order" ASC', [id]);
-    res.json({ ...rows[0], photos: photos.rows });
+
+    const result = await spaceService.getSpaceWithPhotos(id);
+    if (!result) {
+      return res.status(404).json({ error: 'space not found' });
+    }
+
+    const { space, photos } = result;
+    res.json({ ...space, photos });
   } catch (err: any) {
     console.error('[getSpace]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -198,24 +235,32 @@ export const getSpace = async (req: Request, res: Response) => {
 export const updateSpace = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, capacity, base_price_per_hour, active } = req.body;
-    await pool.query(
-      `UPDATE spaces SET
-        name = COALESCE($2,name),
-        description = COALESCE($3,description),
-        capacity = COALESCE($4,capacity),
-        base_price_per_hour = COALESCE($5,base_price_per_hour),
-        active = COALESCE($6,active),
-        updated_at = NOW()
-       WHERE id = $1`,
-      [id, name, description, capacity, base_price_per_hour, active]
-    );
-    const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-    if (!rows[0]) return res.status(404).json({ error: 'space not found' });
-    res.json(rows[0]);
+    const {
+      name,
+      description,
+      capacity,
+      base_price_per_hour,
+      active
+    } = req.body;
+
+    const updated = await spaceService.updateSpace(id, {
+      name,
+      description,
+      capacity,
+      base_price_per_hour,
+      active
+    });
+
+    if (!updated) {
+      return res.status(404).json({ error: 'space not found' });
+    }
+
+    res.json(updated);
   } catch (err: any) {
     console.error('[updateSpace]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -257,14 +302,25 @@ export const updateSpace = async (req: Request, res: Response) => {
 export const activateSpace = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { active } = req.body as { active: boolean };
-    await pool.query('UPDATE spaces SET active = $2, updated_at = NOW() WHERE id = $1', [id, active]);
-    const { rows } = await pool.query('SELECT * FROM spaces WHERE id = $1', [id]);
-    if (!rows[0]) return res.status(404).json({ error: 'space not found' });
-    res.json(rows[0]);
+    const { active } = req.body as { active?: boolean };
+
+    if (typeof active !== 'boolean') {
+      return res
+        .status(400)
+        .json({ error: 'active must be boolean', message: 'active is required' });
+    }
+
+    const space = await spaceService.setSpaceActive(id, active);
+    if (!space) {
+      return res.status(404).json({ error: 'space not found' });
+    }
+
+    res.json(space);
   } catch (err: any) {
     console.error('[activateSpace]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -292,12 +348,16 @@ export const activateSpace = async (req: Request, res: Response) => {
  */
 export const deleteSpace = async (req: Request, res: Response) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM spaces WHERE id = $1', [req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: 'space not found' });
+    const ok = await spaceService.deleteSpace(req.params.id);
+    if (!ok) {
+      return res.status(404).json({ error: 'space not found' });
+    }
     res.status(204).send();
   } catch (err: any) {
     console.error('[deleteSpace]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -324,11 +384,13 @@ export const deleteSpace = async (req: Request, res: Response) => {
  */
 export const listPhotos = async (req: Request, res: Response) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM photos WHERE space_id = $1 ORDER BY "order" ASC', [req.params.id]);
-    res.json(rows);
+    const photos = await spaceService.listPhotos(req.params.id);
+    res.json(photos);
   } catch (err: any) {
     console.error('[listPhotos]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -364,7 +426,7 @@ export const listPhotos = async (req: Request, res: Response) => {
  *                 example: 0
  *           encoding:
  *             image:
- *               contentType: 
+ *               contentType:
  *                 - image/jpeg
  *                 - image/png
  *         application/json:
@@ -384,7 +446,7 @@ export const listPhotos = async (req: Request, res: Response) => {
  *                 example: 0
  *     responses:
  *       201:
- *         description: Foto criada.
+ *         description: Foto criado.
  *         content:
  *           application/json:
  *             schema:
@@ -406,49 +468,22 @@ export const addPhoto = async (req: Request, res: Response) => {
   try {
     const { id: spaceId } = req.params;
 
-    const exists = await pool.query('SELECT 1 FROM spaces WHERE id = $1', [spaceId]);
-    if (!exists.rowCount) return res.status(404).json({ error: 'space not found' });
+    const result = await spaceService.addPhoto(spaceId, req);
 
-    const form = formidable({ multiples: true, keepExtensions: true });
-    const { fields, files } = await new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
-      form.parse(req, (err: any, f: any, fl: any) => (err ? reject(err) : resolve({ fields: f, files: fl })));
-    });
+    if (result.kind === 'SPACE_NOT_FOUND') {
+      return res.status(404).json({ error: 'space not found' });
+    }
 
-    const caption = String(Array.isArray((fields as any).caption) ? (fields as any).caption[0] : (fields as any).caption || '');
-    const orderRaw = Array.isArray((fields as any).order) ? (fields as any).order[0] : (fields as any).order;
-    const order = orderRaw ? Number(orderRaw) : 0;
+    if (result.kind === 'BAD_REQUEST') {
+      return res.status(400).json({ error: 'bad_request', message: result.message });
+    }
 
-    const fileArray = (files as any).image as FormidableFile[] | FormidableFile | undefined;
-    if (!fileArray) return res.status(400).json({ message: 'image file is required (multipart/form-data)' });
-
-    const singleFile = Array.isArray(fileArray) ? fileArray[0] : fileArray;
-    if (!singleFile) return res.status(400).json({ message: 'Invalid image file.' });
-
-    if (singleFile.size > 4 * 1024 * 1024) throw new Error('file size larger than 4MBs');
-    if (!singleFile.mimetype || !['image/jpeg', 'image/png', 'image/jpg'].includes(singleFile.mimetype))
-      throw new Error('file type not supported');
-
-    const tmpPath = (singleFile as any).filepath || (singleFile as any).path;
-    if (!tmpPath) return res.status(400).json({ message: 'Invalid image file path.' });
-
-    const fileContent = await fs.promises.readFile(tmpPath);
-    const photoId = uuid();
-    const bucket = String(process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || 'images');
-    const s3Filename = `${spaceId}_${photoId}.jpg`;
-
-    await uploadFile(bucket, s3Filename, fileContent);
-    try { await fs.promises.unlink(tmpPath); } catch { }
-
-    await pool.query(
-      'INSERT INTO photos (id, space_id, url, caption, "order") VALUES ($1,$2,$3,$4,$5)',
-      [photoId, spaceId, s3Filename, caption || null, order]
-    );
-
-    const { rows } = await pool.query('SELECT * FROM photos WHERE id = $1', [photoId]);
-    return res.status(201).json(rows[0]);
+    return res.status(201).json(result.photo);
   } catch (err: any) {
     console.error('[addPhoto]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -479,10 +514,6 @@ export const addPhoto = async (req: Request, res: Response) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorNotFound'
- *             examples:
- *               notFound:
- *                 value:
- *                   error: "photo not found"
  *       400:
  *         description: Requisição inválida (IDs malformados ou parâmetros incorretos).
  *         content:
@@ -494,21 +525,17 @@ export const deletePhoto = async (req: Request, res: Response) => {
   try {
     const { id: spaceId, photoId } = req.params;
 
-    const q = await pool.query('SELECT url FROM photos WHERE id = $1 AND space_id = $2', [photoId, spaceId]);
-    if (!q.rows[0]) return res.status(404).json({ error: 'photo not found' });
-
-    const key = q.rows[0].url;
-    const bucket = String(process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || 'images');
-
-    try { await removeFile(bucket, key); } catch (e) { console.warn('[deletePhoto] S3 remove failed:', e); }
-
-    const { rowCount } = await pool.query('DELETE FROM photos WHERE id = $1 AND space_id = $2', [photoId, spaceId]);
-    if (!rowCount) return res.status(404).json({ error: 'photo not found' });
+    const result = await spaceService.deletePhoto(spaceId, photoId);
+    if (result === 'PHOTO_NOT_FOUND') {
+      return res.status(404).json({ error: 'photo not found' });
+    }
 
     res.status(204).send();
   } catch (err: any) {
     console.error('[deletePhoto]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -555,19 +582,25 @@ export const deletePhoto = async (req: Request, res: Response) => {
 export const checkAvailability = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { date, start, end } = req.query as { date: string; start: string; end: string };
-    if (!date || !start || !end) return res.status(400).json({ error: 'date, start, end required' });
+    const { date, start, end } = req.query as {
+      date?: string;
+      start?: string;
+      end?: string;
+    };
 
-    const q = `
-      SELECT 1 FROM reservations
-      WHERE space_id = $1 AND date = $2 AND status <> 'CANCELLED'
-        AND NOT (end_time <= $3::time OR start_time >= $4::time)
-      LIMIT 1`;
-    const { rows } = await pool.query(q, [id, date, start, end]);
-    res.json({ available: rows.length === 0 });
+    if (!date || !start || !end) {
+      return res
+        .status(400)
+        .json({ error: 'date, start, end required' });
+    }
+
+    const available = await spaceService.checkAvailability(id, date, start, end);
+    res.json({ available });
   } catch (err: any) {
     console.error('[checkAvailability]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -621,53 +654,37 @@ export const checkAvailability = async (req: Request, res: Response) => {
  */
 export const searchSpaces = async (req: Request, res: Response) => {
   try {
-    const { city, state, capacity, date, start, end } = req.query as any;
-    const params: any[] = [];
-    const filters: string[] = ['s.active = TRUE'];
+    const { city, state, capacity, date, start, end } = req.query as {
+      city?: string;
+      state?: string;
+      capacity?: string;
+      date?: string;
+      start?: string;
+      end?: string;
+    };
 
-    if (capacity) { params.push(Number(capacity)); filters.push(`s.capacity >= $${params.length}`); }
-    if (state) { params.push(state); filters.push(`b.state = $${params.length}`); }
-    if (city) { params.push(city); filters.push(`b.city  = $${params.length}`); }
+    const capacityNum =
+      typeof capacity === 'string' && capacity.trim() !== ''
+        ? Number(capacity)
+        : undefined;
 
-    let availabilityClause = '';
-    if (date && start && end) {
-      params.push(date, start, end);
-      availabilityClause = `
-        AND NOT EXISTS (
-          SELECT 1 FROM reservations r
-          WHERE r.space_id = s.id AND r.date = $${params.length - 2} AND r.status <> 'CANCELLED'
-            AND NOT (r.end_time <= $${params.length - 1}::time OR r.start_time >= $${params.length}::time)
-        )`;
-    }
+    const rows = await spaceService.searchSpaces({
+      city,
+      state,
+      capacity: Number.isFinite(capacityNum ?? NaN) ? capacityNum : undefined,
+      date,
+      start,
+      end
+    });
 
-    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const sql = `
-      SELECT s.*, b.name AS branch_name, b.city, b.state
-      FROM spaces s
-      JOIN branches b ON b.id = s.branch_id
-      ${where} ${availabilityClause}
-      ORDER BY s.name ASC`;
-    const { rows } = await pool.query(sql, params);
     res.json(rows);
   } catch (err: any) {
     console.error('[searchSpaces]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
-
-function guessContentType(key: string): string {
-  const ext = key.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg': return 'image/jpeg';
-    case 'png': return 'image/png';
-    case 'gif': return 'image/gif';
-    case 'webp': return 'image/webp';
-    case 'svg': return 'image/svg+xml';
-    case 'pdf': return 'application/pdf';
-    default: return 'application/octet-stream';
-  }
-}
 
 /**
  * @openapi
@@ -701,25 +718,23 @@ export const viewPhotoImage = async (req: Request, res: Response) => {
   try {
     const { id: spaceId, photoId } = req.params;
 
-    // Busca a key (armazenada no campo "url")
-    const q = await pool.query(
-      'SELECT url FROM photos WHERE id = $1 AND space_id = $2',
-      [photoId, spaceId]
+    const result = await spaceService.getPhotoImage(spaceId, photoId);
+    if (!result) {
+      return res.status(404).json({ error: 'photo not found' });
+    }
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(result.filename)}"`
     );
-    if (!q.rows[0]) return res.status(404).json({ error: 'photo not found' });
-
-    const key = q.rows[0].url as string;
-    const bucket = String(process.env.S3_PHOTO_BUCKET || process.env.S3_IMAGE_BUCKET || 'images');
-
-    const buf = await downloadFile(bucket, key);
-
-    res.setHeader('Content-Type', guessContentType(key));
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(key)}"`);
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.send(buf);
+    res.send(result.buffer);
   } catch (err: any) {
     console.error('[viewPhotoImage]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -767,34 +782,15 @@ export const viewPhotoImage = async (req: Request, res: Response) => {
  *       404:
  *         description: Espaço ou fotos não encontrados.
  */
-
 export const listPhotoLinks = async (req: Request, res: Response) => {
   try {
     const { id: spaceId } = req.params;
+    // por enquanto ignoramos o mode e seguimos retornando links de proxy,
+    // como já fazia a implementação anterior.
+    const result = await spaceService.listPhotoLinks(spaceId);
 
-    // Busca id e url (onde url é a key armazenada no bucket)
-    const q = await pool.query(
-      'SELECT id, url FROM photos WHERE space_id = $1 ORDER BY id',
-      [spaceId]
-    );
-
-    // Pode ser que não haja fotos — devolve lista vazia mesmo assim
-    if (q.rows.length === 0) {
-      return res.json({ items: [] });
-    }
-
-    // Monta links internos (proxy):
-    // /spaces/{id}/photos/{photoId}/image
-    const items = q.rows.map((r: { id: string; url: string }) => {
-      return {
-        id: r.id,
-        href: `/spaces/${encodeURIComponent(spaceId)}/photos/${encodeURIComponent(r.id)}/image`,
-      };
-    });
-
-    // Cache leve
     res.setHeader('Cache-Control', 'private, max-age=60');
-    return res.json({ items });
+    return res.json(result);
   } catch (err: any) {
     console.error('[listPhotoLinks]', err);
     return res
@@ -830,4 +826,4 @@ export const listPhotoLinks = async (req: Request, res: Response) => {
  *         order: { type: integer, example: 0 }
  *         created_at: { type: string, format: date-time, nullable: true }
  */
-export { };
+export {};

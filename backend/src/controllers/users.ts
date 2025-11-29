@@ -1,8 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../config/db.js';
-import { v4 as uuid } from 'uuid';
-import argon2 from 'argon2';
-import jsonwebtoken from 'jsonwebtoken';
+import * as userService from '../services/userService';
 
 /**
  * @openapi
@@ -30,19 +27,13 @@ import jsonwebtoken from 'jsonwebtoken';
 export const listUsers = async (req: Request, res: Response) => {
   try {
     const { role } = req.query as { role?: string };
-    const params: any[] = [];
-    const where = role ? (params.push(role), `WHERE role = $1`) : '';
-    const { rows } = await pool.query(
-      `SELECT id,name,email,phone,role,created_at,updated_at,last_login_at
-         FROM users
-         ${where}
-       ORDER BY created_at DESC`,
-      params
-    );
-    res.json(rows);
+    const users = await userService.listUsers({ role });
+    res.json(users);
   } catch (err: any) {
     console.error('[listUsers]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -99,29 +90,30 @@ export const createUser = async (req: Request, res: Response) => {
   };
 
   if (!name || !email || !password) {
-    return res.status(400).json({ error: 'name, email and password are required' });
+    return res
+      .status(400)
+      .json({ error: 'name, email and password are required' });
   }
 
-  const id = uuid();
-
   try {
-    const passwordHash = await argon2.hash(password);
-    const { rows } = await pool.query(
-      `INSERT INTO users (id, name, email, phone, role, password_hash, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
-       ON CONFLICT (email) DO NOTHING
-       RETURNING id, name, email, phone, role, created_at, updated_at, last_login_at`,
-      [id, name, email, phone ?? null, role ?? 'CUSTOMER', passwordHash]
-    );
+    const result = await userService.createUser({
+      name,
+      email,
+      phone: phone ?? null,
+      role: role ?? null,
+      password
+    });
 
-    if (rows.length === 0) {
+    if (result.kind === 'EMAIL_EXISTS') {
       return res.status(409).json({ error: 'email already exists' });
     }
 
-    return res.status(201).json(rows[0]);
+    return res.status(201).json(result.user);
   } catch (err: any) {
     console.error('[createUser]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -152,17 +144,16 @@ export const createUser = async (req: Request, res: Response) => {
  */
 export const getUser = async (req: Request, res: Response) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id,name,email,phone,role,created_at,updated_at,last_login_at
-         FROM users
-        WHERE id = $1`,
-      [req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'user not found' });
-    res.json(rows[0]);
+    const user = await userService.getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'user not found' });
+    }
+    res.json(user);
   } catch (err: any) {
     console.error('[getUser]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -207,38 +198,35 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, email, phone, role, password } = req.body as {
-      name?: string; email?: string; phone?: string; role?: string; password?: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+      password?: string;
     };
 
-    const passwordHash = password ? await argon2.hash(password) : null;
+    const result = await userService.updateUser(id, {
+      name,
+      email,
+      phone,
+      role,
+      password
+    });
 
-    await pool.query(
-      `UPDATE users SET
-         name          = COALESCE($2, name),
-         email         = COALESCE($3, email),
-         phone         = COALESCE($4, phone),
-         role          = COALESCE($5, role),
-         password_hash = COALESCE($6, password_hash),
-         updated_at    = NOW()
-       WHERE id = $1`,
-      [id, name ?? null, email ?? null, phone ?? null, role ?? null, passwordHash]
-    );
-
-    const { rows } = await pool.query(
-      `SELECT id,name,email,phone,role,created_at,updated_at,last_login_at
-         FROM users WHERE id = $1`,
-      [id]
-    );
-
-    if (!rows[0]) return res.status(404).json({ error: 'user not found' });
-    res.json(rows[0]);
-  } catch (err: any) {
-    // tratar erro de unique violation do email (23505)
-    if (err?.code === '23505') {
+    if (result.kind === 'EMAIL_EXISTS') {
       return res.status(409).json({ error: 'email already exists' });
     }
+
+    if (result.kind === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'user not found' });
+    }
+
+    res.json(result.user);
+  } catch (err: any) {
     console.error('[updateUser]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -266,12 +254,16 @@ export const updateUser = async (req: Request, res: Response) => {
  */
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: 'user not found' });
+    const result = await userService.deleteUser(req.params.id);
+    if (result === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'user not found' });
+    }
     res.status(204).send();
   } catch (err: any) {
     console.error('[deleteUser]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 
@@ -319,45 +311,29 @@ export const deleteUser = async (req: Request, res: Response) => {
  */
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
+
   if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required' });
+    return res
+      .status(400)
+      .json({ error: 'email and password are required' });
   }
 
   try {
-    const { rows } = await pool.query(
-      `SELECT id, name, email, role, password_hash, created_at, updated_at, last_login_at
-         FROM users
-        WHERE email = $1
-        LIMIT 1`,
-      [email]
-    );
+    const result = await userService.login(email, password);
 
-    const user = rows[0];
-    if (!user) return res.status(401).json({ error: 'invalid_credentials' });
-
-    const ok = await argon2.verify(user.password_hash, password);
-    if (!ok) return res.status(401).json({ error: 'invalid_credentials' });
-
-    // Atualiza last_login_at
-    await pool.query(
-      `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [user.id]
-    );
-
-    const token = jsonwebtoken.sign({ sub: user.id, role: user.role, email: user.email }, String(process.env.JWT_KEY), {
-      expiresIn: "1h",
-    });
-
-    // remove password_hash da resposta
-    const { password_hash, ...publicUser } = user;
+    if (result.kind === 'INVALID_CREDENTIALS') {
+      return res.status(401).json({ error: 'invalid_credentials' });
+    }
 
     return res.json({
-      access_token: token,
-      user: publicUser,
+      access_token: result.token,
+      user: result.user
     });
   } catch (err: any) {
     console.error('[loginUser]', err);
-    res.status(500).json({ error: 'internal_error', message: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: 'internal_error', message: err?.message || String(err) });
   }
 };
 

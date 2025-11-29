@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../config/db';
-import { v4 as uuid } from 'uuid';
+import * as paymentService from '../services/paymentService';
 
 /**
  * @openapi
@@ -40,14 +39,29 @@ export const createPayment = async (req: Request, res: Response) => {
   try {
     const { id: reservationId } = req.params;
     const { amount, method, purpose, external_ref } = req.body;
-    const id = uuid();
-    await pool.query(
-      `INSERT INTO payments (id, reservation_id, amount, method, status, purpose, external_ref)
-       VALUES ($1,$2,$3,$4,'PENDING',$5,$6)`,
-      [id, reservationId, amount, method, purpose, external_ref ?? null]
-    );
-    const { rows } = await pool.query('SELECT * FROM payments WHERE id = $1', [id]);
-    res.status(201).json(rows[0]);
+
+    // validação básica aqui no controller
+    if (
+      typeof amount !== 'number' ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return res.status(400).json({ error: 'invalid_amount' });
+    }
+
+    if (!method || typeof method !== 'string') {
+      return res.status(400).json({ error: 'invalid_method' });
+    }
+
+    const payment = await paymentService.createPayment({
+      reservationId,
+      amount,
+      method,
+      purpose,
+      external_ref,
+    });
+
+    res.status(201).json(payment);
   } catch (err) {
     console.error('createPayment error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -81,9 +95,13 @@ export const createPayment = async (req: Request, res: Response) => {
  */
 export const getPayment = async (req: Request, res: Response) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM payments WHERE id = $1', [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'payment not found' });
-    res.json(rows[0]);
+    const payment = await paymentService.getPaymentById(req.params.id);
+
+    if (!payment) {
+      return res.status(404).json({ error: 'payment not found' });
+    }
+
+    res.json(payment);
   } catch (err) {
     console.error('getPayment error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -127,14 +145,17 @@ export const getPayment = async (req: Request, res: Response) => {
 export const markPaid = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { external_ref } = req.body;
-    await pool.query(
-      `UPDATE payments SET status = 'PAID', paid_at = NOW(), external_ref = COALESCE($2, external_ref) WHERE id = $1`,
-      [id, external_ref ?? null]
-    );
-    const { rows } = await pool.query('SELECT * FROM payments WHERE id = $1', [id]);
-    if (!rows[0]) return res.status(404).json({ error: 'payment not found' });
-    res.json(rows[0]);
+    const { external_ref } = req.body ?? {};
+
+    const payment = await paymentService.markPaymentPaid(id, {
+      external_ref,
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'payment not found' });
+    }
+
+    res.json(payment);
   } catch (err) {
     console.error('markPaid error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -173,11 +194,19 @@ export const markPaid = async (req: Request, res: Response) => {
  */
 export const deletePayment = async (req: Request, res: Response) => {
   try {
-    const check = await pool.query('SELECT status FROM payments WHERE id = $1', [req.params.id]);
-    if (!check.rows[0]) return res.status(404).json({ error: 'payment not found' });
-    if (check.rows[0].status === 'PAID') return res.status(400).json({ error: 'cannot delete a paid payment' });
+    const result = await paymentService.deletePaymentWithRules(req.params.id);
 
-    await pool.query('DELETE FROM payments WHERE id = $1', [req.params.id]);
+    if (result === 'NOT_FOUND') {
+      return res.status(404).json({ error: 'payment not found' });
+    }
+
+    if (result === 'CANNOT_DELETE_PAID') {
+      return res
+        .status(400)
+        .json({ error: 'cannot delete a paid payment' });
+    }
+
+    // DELETED
     res.status(204).send();
   } catch (err) {
     console.error('deletePayment error:', err);
@@ -207,7 +236,6 @@ export const deletePayment = async (req: Request, res: Response) => {
  *               type: string
  *               example: ok
  */
-
 export const webhook = async (_req: Request, res: Response) => {
   try {
     res.status(200).send('ok');

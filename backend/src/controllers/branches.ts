@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { pool } from '../config/db';
-import { v4 as uuid } from 'uuid';
+import * as branchService from '../services/branchService';
 
 /**
  * @openapi
@@ -32,13 +31,8 @@ import { v4 as uuid } from 'uuid';
 export const listBranches = async (req: Request, res: Response) => {
   try {
     const { state, city } = req.query as { state?: string; city?: string };
-    const filters: string[] = [];
-    const params: any[] = [];
-    if (state) { params.push(state); filters.push(`state = $${params.length}`); }
-    if (city)  { params.push(city);  filters.push(`city  = $${params.length}`); }
-    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await pool.query(`SELECT * FROM branches ${where} ORDER BY name ASC`, params);
-    res.json(rows);
+    const branches = await branchService.listBranches({ state, city });
+    res.json(branches);
   } catch (err) {
     console.error('listBranches error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -76,13 +70,20 @@ export const listBranches = async (req: Request, res: Response) => {
 export const createBranch = async (req: Request, res: Response) => {
   try {
     const { name, state, city, address } = req.body;
-    const id = uuid();
-    await pool.query(
-      `INSERT INTO branches (id,name,state,city,address) VALUES ($1,$2,$3,$4,$5)`,
-      [id, name, state, city, address]
-    );
-    const { rows } = await pool.query('SELECT * FROM branches WHERE id = $1', [id]);
-    res.status(201).json(rows[0]);
+
+    // validação simples aqui mesmo (se quiser deixar no service, também dá)
+    if (!name || !state || !city || !address) {
+      return res.status(400).json({ error: 'missing_required_fields' });
+    }
+
+    const branch = await branchService.createBranch({
+      name,
+      state,
+      city,
+      address,
+    });
+
+    res.status(201).json(branch);
   } catch (err) {
     console.error('createBranch error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -116,9 +117,11 @@ export const createBranch = async (req: Request, res: Response) => {
  */
 export const getBranch = async (req: Request, res: Response) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM branches WHERE id = $1', [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'branch not found' });
-    res.json(rows[0]);
+    const branch = await branchService.getBranchById(req.params.id);
+    if (!branch) {
+      return res.status(404).json({ error: 'branch not found' });
+    }
+    res.json(branch);
   } catch (err) {
     console.error('getBranch error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -166,14 +169,19 @@ export const updateBranch = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, state, city, address } = req.body;
-    await pool.query(
-      `UPDATE branches SET name = COALESCE($2,name), state = COALESCE($3,state),
-       city = COALESCE($4,city), address = COALESCE($5,address), updated_at = NOW() WHERE id = $1`,
-      [id, name, state, city, address]
-    );
-    const { rows } = await pool.query('SELECT * FROM branches WHERE id = $1', [id]);
-    if (!rows[0]) return res.status(404).json({ error: 'branch not found' });
-    res.json(rows[0]);
+
+    const branch = await branchService.updateBranch(id, {
+      name,
+      state,
+      city,
+      address,
+    });
+
+    if (!branch) {
+      return res.status(404).json({ error: 'branch not found' });
+    }
+
+    res.json(branch);
   } catch (err) {
     console.error('updateBranch error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -204,8 +212,10 @@ export const updateBranch = async (req: Request, res: Response) => {
  */
 export const deleteBranch = async (req: Request, res: Response) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM branches WHERE id = $1', [req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: 'branch not found' });
+    const deleted = await branchService.deleteBranch(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'branch not found' });
+    }
     res.status(204).send();
   } catch (err) {
     console.error('deleteBranch error:', err);
@@ -234,14 +244,10 @@ export const deleteBranch = async (req: Request, res: Response) => {
  *               type: array
  *               items: { $ref: '#/components/schemas/Space' }
  */
-
 export const listSpacesOfBranch = async (req: Request, res: Response) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM spaces WHERE branch_id = $1 ORDER BY name ASC',
-      [req.params.id]
-    );
-    res.json(rows);
+    const spaces = await branchService.listSpacesOfBranch(req.params.id);
+    res.json(spaces);
   } catch (err) {
     console.error('listSpacesOfBranch error:', err);
     res.status(500).json({ error: 'internal_error' });
@@ -264,4 +270,3 @@ export const listSpacesOfBranch = async (req: Request, res: Response) => {
  *         updated_at: { type: string, format: date-time, nullable: true }
  */
 export {};
-
