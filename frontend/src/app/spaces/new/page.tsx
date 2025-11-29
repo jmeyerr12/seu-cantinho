@@ -34,7 +34,7 @@ function NewSpaceInner() {
         const data = await apiFetch('/branches', {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-        setBranches(Array.isArray(data) ? data : (data?.items ?? []));
+        setBranches(Array.isArray(data) ? data : data?.items ?? []);
       } catch (e: any) {
         setErr(e.message ?? 'Erro ao carregar filiais');
       }
@@ -81,18 +81,18 @@ function NewSpaceInner() {
 
   return (
     <RequireAuth>
-      <div className="p-6 max-w-xl">
-        <h1 className="text-2xl font-bold mb-4">Cadastrar Espaço</h1>
+      <div className='p-6 max-w-xl'>
+        <h1 className='text-2xl font-bold mb-4'>Cadastrar Espaço</h1>
 
-        <form onSubmit={onSubmit} className="grid gap-4">
-          <label className="grid gap-1">
-            <span className="text-sm">Filial</span>
+        <form onSubmit={onSubmit} className='grid gap-4'>
+          <label className='grid gap-1'>
+            <span className='text-sm'>Filial</span>
             <select
-              className="border rounded p-2"
+              className='border rounded p-2 bg-white text-black focus:outline-none focus:ring-2 focus:ring-green-500'
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
             >
-              <option value="">Selecione…</option>
+              <option value=''>Selecione…</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} {b.city ? `— ${b.city}` : ''} {b.state ? `/${b.state}` : ''}
@@ -101,77 +101,77 @@ function NewSpaceInner() {
             </select>
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-sm">Nome do Espaço</span>
+          <label className='grid gap-1'>
+            <span className='text-sm'>Nome do Espaço</span>
             <input
-              className="border rounded p-2"
+              className='border rounded p-2'
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Sala Multiuso"
+              placeholder='Sala Multiuso'
             />
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-sm">Descrição (opcional)</span>
+          <label className='grid gap-1'>
+            <span className='text-sm'>Descrição (opcional)</span>
             <textarea
-              className="border rounded p-2"
+              className='border rounded p-2'
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Espaço amplo para eventos."
+              placeholder='Espaço amplo para eventos.'
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1">
-              <span className="text-sm">Capacidade (opcional)</span>
+          <div className='grid grid-cols-2 gap-3'>
+            <label className='grid gap-1'>
+              <span className='text-sm'>Capacidade (opcional)</span>
               <input
-                className="border rounded p-2"
-                type="number"
+                className='border rounded p-2'
+                type='number'
                 min={0}
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                placeholder="30"
+                placeholder='30'
               />
             </label>
 
-            <label className="grid gap-1">
-              <span className="text-sm">Preço base por hora (opcional)</span>
+            <label className='grid gap-1'>
+              <span className='text-sm'>Preço base por hora (opcional)</span>
               <input
-                className="border rounded p-2"
-                type="number"
-                step="0.01"
+                className='border rounded p-2'
+                type='number'
+                step='0.01'
                 min={0}
                 value={basePricePerHour}
                 onChange={(e) => setBasePricePerHour(e.target.value)}
-                placeholder="120.50"
+                placeholder='120.50'
               />
             </label>
           </div>
 
-          <label className="inline-flex items-center gap-2">
+          <label className='inline-flex items-center gap-2'>
             <input
-              type="checkbox"
+              type='checkbox'
               checked={active}
               onChange={(e) => setActive(e.target.checked)}
             />
             <span>Ativo</span>
           </label>
 
-          {err && <p className="text-red-600">{err}</p>}
+          {err && <p className='text-red-600'>{err}</p>}
 
-          <div className="flex gap-3">
+          <div className='flex gap-3'>
             <button
-              type="submit"
+              type='submit'
               disabled={submitting}
-              className="bg-green-600 text-white px-4 py-2 rounded"
+              className='bg-green-600 text-white px-4 py-2 rounded'
             >
               {submitting ? 'Salvando…' : 'Salvar'}
             </button>
             <button
-              type="button"
+              type='button'
               onClick={() => router.back()}
-              className="border px-4 py-2 rounded"
+              className='border px-4 py-2 rounded'
             >
               Cancelar
             </button>
