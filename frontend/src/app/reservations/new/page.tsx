@@ -290,11 +290,190 @@ function NewReservationInner() {
 
   return (
     <RequireAuth>
-      {/* ... o mesmo JSX que você já tinha ... */}
-      {/* mantive tudo igual abaixo */}
-      <div className="p-6">
+      <div className="p-6 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Nova Reserva</h1>
-        {/* resto do form igual */}
+
+        {err && (
+          <div className="mb-4 rounded bg-red-100 text-red-700 p-2 text-sm">
+            {err}
+          </div>
+        )}
+
+        <form onSubmit={createReservation} className="space-y-4">
+          {/* Filial */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Filial</label>
+            <select
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              className="border rounded px-2 py-1 w-full"
+            >
+              <option value="">Selecione…</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                  {b.city ? ` — ${b.city}` : ''}
+                  {b.state ? `/${b.state}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Espaço */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Espaço</label>
+            <select
+              value={spaceId}
+              onChange={(e) => setSpaceId(e.target.value)}
+              className="border rounded px-2 py-1 w-full"
+            >
+              <option value="">Selecione…</option>
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Data */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Data</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+
+          {/* Horários */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Início</label>
+              <input
+                type="time"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="border rounded px-2 py-1 w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Fim</label>
+              <input
+                type="time"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="border rounded px-2 py-1 w-full"
+              />
+            </div>
+          </div>
+
+          {/* Disponibilidade */}
+          <div className="text-sm">
+            {availabilityState === 'loading' && (
+              <span className="text-blue-600">{availabilityMsg}</span>
+            )}
+            {availabilityState === 'available' && (
+              <span className="text-green-600 font-semibold">
+                {availabilityMsg}
+              </span>
+            )}
+            {availabilityState === 'unavailable' && (
+              <span className="text-red-600 font-semibold">
+                {availabilityMsg}
+              </span>
+            )}
+            {availabilityState === 'error' && (
+              <span className="text-red-600">{availabilityMsg}</span>
+            )}
+          </div>
+
+          {/* Preço e duração */}
+          <div className="text-sm border rounded px-3 py-2">
+            {pricePerHour != null && durationHours > 0 ? (
+              <>
+                <p>
+                  Preço por hora:{' '}
+                  <strong>{brl(pricePerHour)}</strong>
+                </p>
+                <p>
+                  Duração:{' '}
+                  <strong>{durationHours}h</strong>
+                </p>
+                <p>
+                  Total da reserva:{' '}
+                  <strong>{brl(total)}</strong>
+                </p>
+              </>
+            ) : (
+              <p className="text-gray-500">
+                Selecione filial, espaço e horários para calcular o valor.
+              </p>
+            )}
+          </div>
+
+          {/* Modo de pagamento */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium mb-1">
+              Forma de pagamento agora
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                checked={payMode === 'signal'}
+                onChange={() => setPayMode('signal')}
+              />
+              <span>
+                Entrada (30%):{' '}
+                <strong>{brl(signalValue)}</strong>
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                checked={payMode === 'full'}
+                onChange={() => setPayMode('full')}
+              />
+              <span>
+                Pagar tudo agora:{' '}
+                <strong>{brl(total)}</strong>
+              </span>
+            </label>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Você pagará agora:{' '}
+              <strong>{brl(payNowValue)}</strong>
+            </p>
+          </div>
+
+          {/* Observações */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Observações
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="border rounded px-2 py-1 w-full"
+              rows={3}
+              placeholder="Alguma informação adicional para a reserva..."
+            />
+          </div>
+
+          {/* Botão */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={submitDisabled}
+              className="px-4 py-2 rounded bg-blue-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Criando reserva...' : 'Criar reserva'}
+            </button>
+          </div>
+        </form>
       </div>
     </RequireAuth>
   );
