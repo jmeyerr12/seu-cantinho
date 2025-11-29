@@ -26,7 +26,7 @@ export interface Reservation {
   created_at?: string | null;
   updated_at?: string | null;
 
-  // colunas de JOIN usadas nos selects
+  // colunas de join
   customer_name?: string;
   space_name?: string;
   branch_name?: string;
@@ -87,7 +87,7 @@ export interface ByDayFilters {
   branchId?: string;
 }
 
-/* Lista reservas com filtros opcionais */
+// reservas com filtros e etc
 export async function listReservations(
   filters: ReservationFilters,
 ): Promise<Reservation[]> {
@@ -133,7 +133,7 @@ export async function listReservations(
   return rows;
 }
 
-/* Detalha reserva + pagamentos */
+// detalha reserva + pag
 export async function getReservationWithPayments(
   id: string,
 ): Promise<{ reservation: Reservation; payments: Payment[] } | null> {
@@ -158,7 +158,7 @@ export async function getReservationWithPayments(
   return { reservation, payments: pays.rows };
 }
 
-/* Cria reserva (com validação de conflito + preço) */
+
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<CreateReservationResult> {
@@ -234,7 +234,6 @@ export async function createReservation(
   return { kind: 'OK', reservation: rows[0] };
 }
 
-/* Atualiza reserva (revalida conflitos se mudar data/horário) */
 export async function updateReservation(
   id: string,
   input: UpdateReservationInput,
@@ -302,7 +301,6 @@ export async function updateReservation(
   return { kind: 'OK', reservation: updated };
 }
 
-/* Confirma reserva */
 export async function confirmReservation(
   id: string,
 ): Promise<Reservation | null> {
@@ -318,7 +316,6 @@ export async function confirmReservation(
   return rows[0] ?? null;
 }
 
-/* Cancela reserva */
 export async function cancelReservation(
   id: string,
 ): Promise<Reservation | null> {
@@ -334,7 +331,6 @@ export async function cancelReservation(
   return rows[0] ?? null;
 }
 
-/* Lista pagamentos de uma reserva */
 export async function listPaymentsOfReservation(
   reservationId: string,
 ): Promise<Payment[]> {
@@ -345,7 +341,6 @@ export async function listPaymentsOfReservation(
   return rows;
 }
 
-/* Agenda do dia */
 export async function getReservationsByDay(
   filters: ByDayFilters,
 ): Promise<Reservation[]> {

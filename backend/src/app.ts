@@ -2,24 +2,21 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger';
-import router from "./routes/index.js"; // <- mantém .js pois NodeNext exige
+import router from "./routes/index.js";
 
 const app = express();
 
-// Middlewares básicos
+// middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Rotas principais
 app.use("/", router);
 
-// Serve a UI
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
 
 // 404 handler
@@ -30,7 +27,7 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Tratamento de erros
+// trata erros
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const status = (err as any)?.statusCode || 500;
   const message = (err as any)?.message || "Erro interno no servidor";

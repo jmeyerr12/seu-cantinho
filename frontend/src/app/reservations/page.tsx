@@ -17,10 +17,8 @@ type Reservation = {
   end_time?: string;
   status?: ReservationStatus;
 
-  // quando seu back trouxer total da reserva:
-  total_amount?: number; // esperado em CENTAVOS
+  total_amount?: number; // esperado em cents
 
-  // fallbacks comuns:
   total?: number;
   amount?: number;
   price?: number;
@@ -46,7 +44,7 @@ function centsToBRL(cents?: number) {
 
 function formatDateBR(value?: string) {
   if (!value) return '-';
-  const [datePart] = value.split('T'); // 2025-12-01 ou 2025-12-01T00:00:00.000Z
+  const [datePart] = value.split('T');
   const [yyyy, mm, dd] = datePart.split('-');
   if (!yyyy || !mm || !dd) return value;
   return `${dd}/${mm}/${yyyy}`;
@@ -81,7 +79,7 @@ export default function ReservationsPage() {
     {},
   );
 
-  // Carrega reservas
+  // carrega reservas
   useEffect(() => {
     (async () => {
       try {
@@ -107,7 +105,7 @@ export default function ReservationsPage() {
     })();
   }, [token, user?.id, user?.role]);
 
-  // Busca detalhes dos espaços (nome / preço hora) quando só temos o id
+  // busca detalhes dos espaços qnd temos id
   useEffect(() => {
     (async () => {
       if (!items.length) return;
@@ -148,7 +146,6 @@ export default function ReservationsPage() {
                 : undefined,
           };
         } catch {
-          // se der erro num espaço específico, só ignora e segue
         }
       }
 
@@ -181,8 +178,8 @@ export default function ReservationsPage() {
     return dateBR;
   }
 
+  // calcula o total de acordo com alguns cenarios
   function renderTotalBRL(r: Reservation) {
-    // 1) Se o back já mandar total em centavos
     if (
       typeof r.total_amount === 'number' &&
       Number.isFinite(r.total_amount) &&
@@ -191,7 +188,6 @@ export default function ReservationsPage() {
       return centsToBRL(r.total_amount);
     }
 
-    // 2) Se vier algum campo em reais
     const explicitReal = r.total ?? r.amount ?? r.price ?? r.space?.price;
     if (typeof explicitReal === 'number' && Number.isFinite(explicitReal)) {
       return explicitReal.toLocaleString('pt-BR', {
@@ -200,7 +196,6 @@ export default function ReservationsPage() {
       });
     }
 
-    // 3) Calcular a partir do preço/hora do espaço e duração
     let pricePerHour: number | undefined;
 
     if (typeof r.space?.price === 'number') {

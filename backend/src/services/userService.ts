@@ -177,7 +177,7 @@ export async function login (
     return { kind: 'INVALID_CREDENTIALS' };
   }
 
-  // Atualiza last_login_at
+  // atualiza o log
   await pool.query(
     `UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = $1`,
     [user.id]

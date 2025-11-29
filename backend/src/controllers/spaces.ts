@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as spaceService from '../services/spaceService';
 
-/* helpers de query */
+// helpers
 const parseBoolFromQuery = (v: unknown): boolean | undefined => {
   if (typeof v === 'string') {
     if (v === 'true') return true;

@@ -1,4 +1,3 @@
-// src/swagger.ts
 import swaggerJSDoc, { Options } from 'swagger-jsdoc';
 
 const options: Options = {
@@ -24,12 +23,11 @@ const options: Options = {
     },
     security: [
       {
-        bearerAuth: [], // Aplica globalmente a todas as rotas
+        bearerAuth: [],
       },
     ],
   },
-  // Aponte para os arquivos que contêm as anotações JSDoc
-  apis: ['src/**/*.ts'], // se rodar o build e servir de /dist, mude para 'dist/**/*.js'
+  apis: ['src/**/*.ts'],
 };
 
 export const swaggerSpec = swaggerJSDoc(options);

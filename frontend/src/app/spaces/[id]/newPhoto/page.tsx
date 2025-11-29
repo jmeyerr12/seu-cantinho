@@ -28,7 +28,7 @@ export default function NewPhotosPage() {
     try {
       const formData = new FormData();
 
-      // backend espera "image", permite múltiplas (multiples: true)
+      // backend espera "image"
       for (let i = 0; i < files.length; i++) {
         formData.append('image', files[i]);
       }

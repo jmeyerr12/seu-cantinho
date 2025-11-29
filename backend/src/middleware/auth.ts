@@ -1,13 +1,10 @@
 import jsonwebtoken from "jsonwebtoken";
 import express, { Request, Response } from "express";
 
-/* gera e exporta o tipo Middlewate */
+// gera e exporta o MW
 export type Middleware = (req: Request, res: Response, next: express.NextFunction) => void;
 
-/*
-    Funcao que valida um token de uma secao de usuario, retorna 401 caso o token seja invalido ou ja tenha expirado
-    E caso o token seja valido ele permite a proxima operacao
-*/
+// funcao que valida um token de uma secao de usuario, retorna 401 caso o token seja invalido ou ja tenha expirado e caso o token seja valido ele permite a proxima operacao
 export function tokenValidation(): Middleware {
   return function (req, res, next) {
     try {

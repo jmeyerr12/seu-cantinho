@@ -9,7 +9,7 @@ import { apiFetch } from '@/lib/api';
 type Payment = {
   id: string;
   reservation_id: string;
-  amount: number;           // REAIS (float) vindo do backend
+  amount: number;
   method: string;
   status: 'PENDING'|'PAID'|'CANCELLED';
   purpose?: 'RESERVATION'|'SIGNAL'|'FULL'|string;

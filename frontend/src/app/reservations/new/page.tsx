@@ -12,7 +12,7 @@ type Space  = { id: string; name: string; branch_id: string };
 
 type AvailState = 'idle' | 'loading' | 'available' | 'unavailable' | 'error';
 
-// Componente REAL (usa useSearchParams)
+// componente real
 function NewReservationInner() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -57,7 +57,6 @@ function NewReservationInner() {
     return Number(n.toFixed(2));
   }
 
-  // 0) Se veio só spaceId na URL, descobre a filial via /spaces/{id}
   useEffect(() => {
     (async () => {
       if (!preBranchId && preSpaceId) {
@@ -71,10 +70,9 @@ function NewReservationInner() {
         }
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSpaceId, preBranchId, token]);
 
-  // 1) Carrega filiais
+  // carrega filiais
   useEffect(() => {
     (async () => {
       try {
@@ -86,10 +84,9 @@ function NewReservationInner() {
         setErr('Erro ao carregar filiais');
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // 2) Quando muda filial, carrega espaços
+  // quando muda filial, carrega espaços
   useEffect(() => {
     setSpaces([]);
     setAvailabilityState('idle');
@@ -118,10 +115,9 @@ function NewReservationInner() {
         setErr('Erro ao carregar espaços');
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId, token]);
 
-  // 3) Sempre buscar preço/hora no detalhe /spaces/:id
+  // sempre buscar preço/hora no detalhe /spaces/:id
   useEffect(() => {
     setPricePerHour(null);
     if (!spaceId) return;
@@ -146,7 +142,7 @@ function NewReservationInner() {
     })();
   }, [spaceId, token]);
 
-  // 4) Disponibilidade automática
+  // disponibilidade automática
   useEffect(() => {
     if (!spaceId || !date || !start || !end) {
       setAvailabilityState('idle');
@@ -319,7 +315,7 @@ function NewReservationInner() {
             </select>
           </div>
 
-          {/* Espaço */}
+          {/* espaço */}
           <div>
             <label className="block text-sm font-medium mb-1">Espaço</label>
             <select
@@ -336,7 +332,7 @@ function NewReservationInner() {
             </select>
           </div>
 
-          {/* Data */}
+          {/* data */}
           <div>
             <label className="block text-sm font-medium mb-1">Data</label>
             <input
@@ -347,7 +343,7 @@ function NewReservationInner() {
             />
           </div>
 
-          {/* Horários */}
+          {/* horários */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Início</label>
@@ -369,7 +365,7 @@ function NewReservationInner() {
             </div>
           </div>
 
-          {/* Disponibilidade */}
+          {/* disponibilidade */}
           <div className="text-sm">
             {availabilityState === 'loading' && (
               <span className="text-blue-600">{availabilityMsg}</span>
@@ -389,7 +385,7 @@ function NewReservationInner() {
             )}
           </div>
 
-          {/* Preço e duração */}
+          {/* preço e duração */}
           <div className="text-sm border rounded px-3 py-2">
             {pricePerHour != null && durationHours > 0 ? (
               <>
@@ -413,7 +409,7 @@ function NewReservationInner() {
             )}
           </div>
 
-          {/* Modo de pagamento */}
+          {/* modo de pagamento */}
           <div className="space-y-1">
             <label className="block text-sm font-medium mb-1">
               Forma de pagamento agora
@@ -449,7 +445,7 @@ function NewReservationInner() {
             </p>
           </div>
 
-          {/* Observações */}
+          {/* observações */}
           <div>
             <label className="block text-sm font-medium mb-1">
               Observações
@@ -463,7 +459,7 @@ function NewReservationInner() {
             />
           </div>
 
-          {/* Botão */}
+          {/* botão */}
           <div className="pt-2">
             <button
               type="submit"
@@ -479,7 +475,7 @@ function NewReservationInner() {
   );
 }
 
-// Componente exportado: envolve em Suspense
+// componente exportado: envolve em suspense
 export default function NewReservationPage() {
   return (
     <Suspense fallback={<div>Carregando…</div>}>

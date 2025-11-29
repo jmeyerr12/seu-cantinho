@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 type Branch = { id: string; name: string; city?: string; state?: string };
 
-// Componente interno: usa useSearchParams
+// componente interno: usa useSearchParams
 function NewSpaceInner() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -20,14 +20,14 @@ function NewSpaceInner() {
   const [branchId, setBranchId] = useState<string>(preBranchId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [capacity, setCapacity] = useState<string>(''); // number input -> string state
-  const [basePricePerHour, setBasePricePerHour] = useState<string>(''); // idem
+  const [capacity, setCapacity] = useState<string>('');
+  const [basePricePerHour, setBasePricePerHour] = useState<string>('');
   const [active, setActive] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
 
-  // Carrega filiais
+  // carrega filiais
   useEffect(() => {
     (async () => {
       try {
@@ -71,7 +71,7 @@ function NewSpaceInner() {
         body: JSON.stringify(payload),
       });
 
-      router.push('/'); // ou /spaces
+      router.push('/');
     } catch (e: any) {
       setErr(e.message ?? 'Erro ao criar espaço');
     } finally {
@@ -182,7 +182,7 @@ function NewSpaceInner() {
   );
 }
 
-// Componente exportado: coloca o Suspense em volta
+// componente exportado: coloca o suspense em volta
 export default function NewSpacePage() {
   return (
     <Suspense fallback={<div>Carregando…</div>}>

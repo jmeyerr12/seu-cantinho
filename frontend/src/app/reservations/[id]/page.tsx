@@ -12,16 +12,16 @@ type Reservation = {
   branch_id: string;
   customer_id: string;
   date: string;
-  start_time: string; // "HH:MM"
-  end_time: string;   // "HH:MM"
+  start_time: string;
+  end_time: string;
   status: 'PENDING'|'CONFIRMED'|'CANCELLED';
-  total_amount?: number; // REAIS (float) se existir no back
+  total_amount?: number;
 };
 
 type Payment = {
   id: string;
   reservation_id: string;
-  amount: number; // REAIS (float)
+  amount: number;
   method: string;
   status: 'PENDING'|'PAID'|'CANCELLED';
   purpose?: 'RESERVATION'|'SIGNAL'|'FULL'|string;
@@ -34,8 +34,7 @@ type Payment = {
 type Space = {
   id: string|number;
   name: string;
-  base_price_per_hour?: string; // "1123.00"
-  // outros campos do seu back...
+  base_price_per_hour?: string;
 };
 
 function formatBRL(v: number) {
@@ -85,7 +84,7 @@ export default function ReservationDetailsPage() {
         } else {
           setSpace(null);
         }
-      } catch { /* ignora erro do espaço */ }
+      } catch {}
 
       const ps = await apiFetch(`/reservations/${id}/payments`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -99,32 +98,29 @@ export default function ReservationDetailsPage() {
     }
   }
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [id, token]);
+  useEffect(() => { loadAll();}, [id, token]);
 
-  // Polling leve se houver pendentes
   useEffect(() => {
     if (!payments.some(p => p.status === 'PENDING')) return;
     const t = setInterval(loadAll, 7000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payments.map(p => p.status).join('|')]);
 
-  // Total (REAIS):
-  // 1) usa resv.total_amount se vier do back;
-  // 2) senão calcula horas * base_price_per_hour (string) do espaço.
+  // usa resv.total_amount se vier do back;
+  // se nao calcula horas * base_price_per_hour (string) do espaco
   const totalReais = useMemo(() => {
     if (resv?.total_amount != null && !Number.isNaN(Number(resv.total_amount))) {
       return Number(resv.total_amount);
     }
     const priceStr = space?.base_price_per_hour;
     if (!priceStr) return 0;
-    const pricePerHour = Number(priceStr); // "1123.00" -> 1123
+    const pricePerHour = Number(priceStr);
     const minutes = Math.max(0, hhmmToMinutes(resv?.end_time ?? '0:0') - hhmmToMinutes(resv?.start_time ?? '0:0'));
-    const hours = minutes / 60; // pode ser quebrado
+    const hours = minutes / 60;
     return pricePerHour * hours;
   }, [resv?.total_amount, resv?.start_time, resv?.end_time, space?.base_price_per_hour]);
 
-  // Pago (REAIS) somando apenas status PAID
+  // pago somando apenas status PAID
   const paidReais = useMemo(
     () => payments.filter(p => p.status === 'PAID').reduce((acc, p) => acc + Number(p.amount || 0), 0),
     [payments]
@@ -155,9 +151,9 @@ export default function ReservationDetailsPage() {
     } catch (e: any) { setErr(e.message ?? 'Erro ao cancelar'); }
   }
 
-  // Criar pagamento apenas do restante (REAIS)
+  // criar pagamento apenas do restante
   async function onCreateRemainingPayment() {
-    if (!isOwner) return; // só o cliente dono
+    if (!isOwner) return;
     if (remainingReais <= 0) { setErr('Nada restante para pagar.'); return; }
     try {
       const newPay = await apiFetch(`/reservations/${id}/payments`, {
@@ -167,7 +163,7 @@ export default function ReservationDetailsPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          amount: Number(remainingReais.toFixed(2)), // REAIS (float)
+          amount: Number(remainingReais.toFixed(2)),
           method: 'PIX',
           purpose: 'RESERVATION',
         }),
@@ -228,7 +224,7 @@ export default function ReservationDetailsPage() {
 
             {tab === 'payments' && (
               <div className="space-y-4">
-                {/* Criar pagamento — SOMENTE cliente dono da reserva */}
+                {}
                 {isOwner && resv.status !== 'CANCELLED' && (
                   <div className="border rounded p-4 space-y-3">
                     <h2 className="text-lg font-medium">Pagamento</h2>
@@ -247,7 +243,7 @@ export default function ReservationDetailsPage() {
                   </div>
                 )}
 
-                {/* Lista de pagamentos */}
+                {}
                 <div className="border rounded p-4">
                   <h2 className="text-lg font-medium mb-2">Pagamentos da reserva</h2>
                   {payments.length === 0 ? (

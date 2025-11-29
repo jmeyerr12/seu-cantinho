@@ -16,7 +16,7 @@ export function useAuth() {
   const [ready, setReady] = useState(false);
   const router = useRouter();
 
-  // 1) Hidrata do localStorage ao montar
+  // hidrata do localStorage ao montar
   useEffect(() => {
     const t = localStorage.getItem('token');
     const u = localStorage.getItem('user');
@@ -25,10 +25,10 @@ export function useAuth() {
       setToken(t);
       try { setUser(JSON.parse(u)); } catch {}
     }
-    setReady(true); // só fica "pronto" após ler o storage
+    setReady(true);
   }, []);
 
-  // 2) Sincroniza mudanças vindas de outras abas (evento 'storage')
+  // sincroniza mudanças vindas de outras abas
   useEffect(() => {
     function onStorage(e: StorageEvent) {
       if (e.key === 'token' || e.key === 'user') {
@@ -42,7 +42,7 @@ export function useAuth() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // 3) Sincroniza mudanças na MESMA aba (evento custom 'auth-token')
+  // sincroniza mudanças na MESMA aba
   useEffect(() => {
     function onAuthToken() {
       const t = localStorage.getItem('token');
@@ -60,7 +60,7 @@ export function useAuth() {
     setUser(u);
     setToken(t);
 
-    // Notifica a app imediatamente
+    // notifica a app imediatamente
     window.dispatchEvent(new Event('auth-token'));
   }
 
@@ -70,7 +70,6 @@ export function useAuth() {
     setUser(null);
     setToken(null);
 
-    // Notifica a app imediatamente
     window.dispatchEvent(new Event('auth-token'));
 
     router.push('/login');

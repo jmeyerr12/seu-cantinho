@@ -10,14 +10,14 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!ready) return;           // <- espera carregar storage
+    if (!ready) return; // espera carregar storage
     if (!isLogged && pathname !== '/login') {
       router.replace('/login');
     }
   }, [ready, isLogged, pathname, router]);
 
-  if (!ready) return <div className='p-6'>Carregando…</div>; // evita flicker/redirect precoce
-  if (!isLogged) return null; // já está redirecionando
+  if (!ready) return <div className='p-6'>Carregando…</div>;
+  if (!isLogged) return null;
 
   return <>{children}</>;
 }

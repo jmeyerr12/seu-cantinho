@@ -2,7 +2,7 @@ import {
     S3Client,
   } from "@aws-sdk/client-s3";
 
-/* configuracao do S3 com as credenciais fornecidas pelos roots */
+// configuracao do S3
 const s3 = new S3Client({
     region: "default",
     endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",

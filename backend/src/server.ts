@@ -1,7 +1,7 @@
 import "dotenv/config"; // garante que as variáveis do .env sejam carregadas
-import app from "./app.js"; // importa o app principal (Express, por exemplo)
+import app from "./app.js";
 
-// porta vinda do .env (ou 3000 por padrão)
+// porta vinda do .env
 const port = Number(process.env.PORT) || 5000;
 
 // inicia o servidor e mostra no console
