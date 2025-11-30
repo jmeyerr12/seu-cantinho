@@ -56,7 +56,7 @@ Serviços existentes:
 
 * Backend (porta 5000)
 * Frontend (porta 3001)
-* PostgreSQL (porta 5431 → 5432 interno)
+* PostgreSQL (porta 5431 -> 5432 interno)
 * MinIO (portas 9000 e 9001)
 * Setup automático do bucket e do usuário S3
 
@@ -119,6 +119,7 @@ pnpm dev
 Ou produção:
 
 ```bash
+pnpm install
 pnpm build
 pnpm start
 ```
@@ -158,23 +159,7 @@ Um usuário administrador pode:
 
 ---
 
-## 6. Banco de Dados
-
-O PostgreSQL executa automaticamente o arquivo:
-
-```
-./database/init.sql
-```
-
-O volume persistente utilizado:
-
-```
-postgres_data
-```
-
----
-
-## 7. Armazenamento de Imagens (MinIO)
+## 6. Armazenamento de Imagens (MinIO)
 
 O MinIO está disponível em:
 
@@ -191,29 +176,7 @@ As imagens enviadas pelo backend são armazenadas nesse bucket.
 
 ---
 
-## 8. Estrutura de Pastas
-
-```
-.
-├── backend
-│   ├── src
-│   ├── prisma
-│   ├── Containerfile
-│   └── .env.example
-├── frontend
-│   ├── app
-│   ├── public
-│   ├── Containerfile
-│   └── .env.local
-├── database
-│   └── init.sql
-├── docker-compose.yml
-└── README.md
-```
-
----
-
-## 9. Comandos Úteis
+## 7. Comandos Úteis
 
 ### Parar os serviços
 
